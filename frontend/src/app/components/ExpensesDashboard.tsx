@@ -1,0 +1,222 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, Filter, Calendar, TrendingDown, Receipt, Trash2 } from 'lucide-react';
+import { AddTransactionForm } from './AddTransactionForm';
+import { api } from '../lib/api';
+import type { Transaction } from '../types/finance';
+
+export function ExpensesDashboard() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const categoryIcons: { [key: string]: string } = {
+    'Food & Dining': '🍽️',
+    'Transportation': '🚗',
+    'Shopping': '🛍️',
+    'Bills & Utilities': '💡',
+    'Entertainment': '🎬',
+    'Healthcare': '🏥',
+    'Salary': '💰',
+    'Freelance': '💼',
+  };
+
+  const categories = useMemo(
+    () => [
+      'Food & Dining',
+      'Transportation',
+      'Shopping',
+      'Bills & Utilities',
+      'Entertainment',
+      'Healthcare',
+      'Salary',
+      'Freelance',
+      'Investment',
+      'Other',
+    ],
+    [],
+  );
+
+  const loadTransactions = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await api.getTransactions();
+      setTransactions(data);
+    } catch (loadError) {
+      setError('Could not load transactions. Start API server and check DB connection.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadTransactions();
+  }, []);
+
+  const handleAddTransaction = async (transaction: Omit<Transaction, 'id'>) => {
+    await api.addTransaction(transaction);
+    await loadTransactions();
+    setShowAddForm(false);
+  };
+
+  const handleDeleteTransaction = async (id: string) => {
+    await api.deleteTransaction(id);
+    await loadTransactions();
+  };
+
+  const expenseTransactions = transactions.filter((t) => t.type === 'expense');
+  const totalSpent = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);
+  const avgDailySpend = expenseTransactions.length > 0 ? totalSpent / expenseTransactions.length : 0;
+
+  return (
+    <div className="h-full overflow-y-auto bg-white/45 backdrop-blur-[2px] p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Expense Tracking</h1>
+            <p className="text-gray-600">Track karo apne har ek rupaye ko</p>
+          </div>
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-xl hover:shadow-lg transition-all"
+          >
+            <Plus className="w-5 h-5" />
+            Add Transaction
+          </button>
+        </div>
+
+        {showAddForm && (
+          <AddTransactionForm onAdd={handleAddTransaction} categories={categories} />
+        )}
+
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 text-red-700 px-4 py-3">
+            {error}
+          </div>
+        )}
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-xl p-4 border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Total Spent</p>
+                <p className="text-2xl font-bold text-red-600">₹{totalSpent.toLocaleString('en-IN')}</p>
+              </div>
+              <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                <TrendingDown className="w-6 h-6 text-red-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-4 border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Total Transactions</p>
+                <p className="text-2xl font-bold">{transactions.length}</p>
+              </div>
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <Receipt className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-4 border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Avg Daily Spend</p>
+                <p className="text-2xl font-bold">₹{Math.round(avgDailySpend).toLocaleString('en-IN')}</p>
+              </div>
+              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white rounded-xl p-4 border border-gray-200">
+          <div className="flex items-center gap-4 flex-wrap">
+            <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+              <Filter className="w-4 h-4" />
+              All Categories
+            </button>
+            <button className="px-4 py-2 text-sm hover:bg-gray-100 rounded-lg transition-colors">
+              This Month
+            </button>
+            <button className="px-4 py-2 text-sm hover:bg-gray-100 rounded-lg transition-colors">
+              Last 7 Days
+            </button>
+            <button className="px-4 py-2 text-sm hover:bg-gray-100 rounded-lg transition-colors">
+              Custom Range
+            </button>
+          </div>
+        </div>
+
+        {/* Transactions List */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="p-4 border-b border-gray-200">
+            <h2 className="font-semibold">Recent Transactions</h2>
+          </div>
+          <div className="divide-y divide-gray-200">
+            {loading ? (
+              <div className="p-4 text-gray-500">Loading transactions...</div>
+            ) : transactions.length === 0 ? (
+              <div className="p-4 text-gray-500">No transactions found. Add your first transaction.</div>
+            ) : transactions.map((transaction) => (
+              <div key={transaction.id} className="p-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
+                    transaction.type === 'income' ? 'bg-green-100' : 'bg-red-100'
+                  }`}>
+                    {categoryIcons[transaction.category] || '📝'}
+                  </div>
+
+                  <div className="flex-1">
+                    <h3 className="font-medium">{transaction.description}</h3>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <span>{transaction.category}</span>
+                      <span>•</span>
+                      <span>{new Date(transaction.date).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      })}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className={`text-xl font-bold ${
+                      transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {transaction.type === 'income' ? '+' : '-'}₹{transaction.amount.toLocaleString('en-IN')}
+                    </div>
+                    <button
+                      onClick={() => void handleDeleteTransaction(transaction.id)}
+                      className="p-2 rounded-md hover:bg-red-100 text-gray-500 hover:text-red-600"
+                      aria-label="Delete transaction"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Insights */}
+        <div className="bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6">
+          <h3 className="font-semibold mb-3">💡 AI Insights</h3>
+          <ul className="space-y-2 text-sm text-gray-700">
+            <li>• Food & Dining pe 35% spend ho raha hai - budget limit cross kar liya!</li>
+            <li>• Last month ke comparison mein ₹5,000 kam kharcha hua. Great job! 👏</li>
+            <li>• Weekend pe spending zyada hoti hai. Watch out!</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
