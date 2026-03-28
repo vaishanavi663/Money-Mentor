@@ -17,6 +17,8 @@ import { Toaster } from './components/ui/sonner';
 import { TaxTips } from '@/components/TaxTips';
 import { api, clearStoredToken, getStoredToken, setStoredToken, type AuthResponse, type AuthUser } from './lib/api';
 import { useUserProfile } from './context/UserProfileContext';
+import { usePlan } from '../hooks/usePlan';
+import type { UserPlan } from './lib/api';
 
 type Page = 'dashboard' | 'chat' | 'expenses' | 'simulator' | 'health' | 'tax-tips' | 'schemes';
 type AuthScreen = 'landing' | 'login' | 'register' | 'app';
@@ -30,10 +32,33 @@ interface BadDecision {
   amount: number;
 }
 
+function FutureSimulatorUpgradePrompt({ onUpgrade }: { onUpgrade: () => void }) {
+  return (
+    <div className="relative z-10 flex h-full items-center justify-center overflow-y-auto bg-white/45 p-6 backdrop-blur-[2px]">
+      <div className="max-w-lg rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-lg">
+        <h2 className="text-2xl font-bold text-gray-900">Future Simulator</h2>
+        <p className="mt-3 text-gray-600">
+          Project goals, money leaks, and long-term wealth scenarios. This Pro feature helps you see how choices today
+          shape tomorrow.
+        </p>
+        <button
+          type="button"
+          onClick={onUpgrade}
+          className="mt-6 w-full rounded-xl bg-gradient-to-r from-green-600 to-blue-600 py-3 font-medium text-white transition-opacity hover:opacity-95"
+        >
+          Upgrade to Pro — ₹99/mo
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const { profile, setIdentity, clearProfile, hydrateFromServer } = useUserProfile();
+  const { isPro, showUpgradeModal } = usePlan();
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [authScreen, setAuthScreen] = useState<AuthScreen>('landing');
+  const [registerIntentPlan, setRegisterIntentPlan] = useState<UserPlan>('free');
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [activePage, setActivePage] = useState<Page>('dashboard');
@@ -53,7 +78,12 @@ export default function App() {
       try {
         const response = await api.getMe();
         setCurrentUser(response.user);
-        setIdentity({ name: response.user.name, email: response.user.email });
+        setIdentity({
+          name: response.user.name,
+          email: response.user.email,
+          plan: response.user.plan ?? "free",
+          planExpiresAt: response.user.planExpiresAt ?? null,
+        });
         localStorage.setItem('moneymentor-user', JSON.stringify(response.user));
         try {
           const { profile: serverProfile } = await api.getUserProfile();
@@ -78,7 +108,13 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleGetStarted = () => {
+  const handleGetStartedFree = () => {
+    setRegisterIntentPlan('free');
+    setAuthScreen('register');
+  };
+
+  const handleGetStartedPro = () => {
+    setRegisterIntentPlan('pro');
     setAuthScreen('register');
   };
 
@@ -87,13 +123,19 @@ export default function App() {
   };
 
   const handleBackToLanding = () => {
+    setRegisterIntentPlan('free');
     setAuthScreen('landing');
   };
 
   const handleAuthSuccess = async (payload: AuthResponse, source: 'login' | 'register') => {
     setStoredToken(payload.token);
     setCurrentUser(payload.user);
-    setIdentity({ name: payload.user.name, email: payload.user.email });
+    setIdentity({
+      name: payload.user.name,
+      email: payload.user.email,
+      plan: payload.user.plan ?? "free",
+      planExpiresAt: payload.user.planExpiresAt ?? null,
+    });
     localStorage.setItem('moneymentor-user', JSON.stringify(payload.user));
     setDismissedDecisionIds([]);
     let completedOnboarding = profile.hasCompletedOnboarding;
@@ -181,13 +223,20 @@ export default function App() {
   }
 
   if (authScreen === 'landing') {
-    return <LandingPage onGetStarted={handleGetStarted} onLogin={handleLogin} />;
+    return (
+      <LandingPage
+        onGetStartedFree={handleGetStartedFree}
+        onGetStartedPro={handleGetStartedPro}
+        onLogin={handleLogin}
+      />
+    );
   }
 
   if (authScreen === 'login' || authScreen === 'register') {
     return (
       <AuthPage
         mode={authScreen}
+        signupPlan={registerIntentPlan}
         onBackToLanding={handleBackToLanding}
         onAuthSuccess={handleAuthSuccess}
       />
@@ -218,7 +267,19 @@ export default function App() {
         {activePage === 'dashboard' && <MainDashboard />}
         {activePage === 'chat' && <AIChat />}
         {activePage === 'expenses' && <ExpensesDashboard />}
-        {activePage === 'simulator' && <FutureSimulator onNavigateToChat={() => setActivePage('chat')} />}
+        {activePage === 'simulator' &&
+          (isPro ? (
+            <FutureSimulator onNavigateToChat={() => setActivePage('chat')} />
+          ) : (
+            <FutureSimulatorUpgradePrompt
+              onUpgrade={() =>
+                showUpgradeModal(
+                  'Future Simulator',
+                  'Run wealth projections, goal timelines, and leak analysis — included in Pro alongside Voice Assistant and unlimited AI chat.',
+                )
+              }
+            />
+          ))}
         {activePage === 'health' && <MoneyHealthScore />}
         {activePage === 'tax-tips' && (
           <div className="relative z-10 h-full overflow-y-auto bg-white/45 backdrop-blur-[2px]">

@@ -2,11 +2,12 @@ import { ArrowRight, Bot, TrendingUp, Target, Shield, Sparkles, CheckCircle2 } f
 import { MotionBackground } from './MotionBackground';
 
 interface LandingPageProps {
-  onGetStarted: () => void;
+  onGetStartedFree: () => void;
+  onGetStartedPro: () => void;
   onLogin: () => void;
 }
 
-export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
+export function LandingPage({ onGetStartedFree, onGetStartedPro, onLogin }: LandingPageProps) {
   return (
     <div className="relative min-h-screen">
       <MotionBackground />
@@ -26,7 +27,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
           </p>
           <div className="flex items-center justify-center gap-3">
             <button
-              onClick={onGetStarted}
+              onClick={onGetStartedFree}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-500 px-8 py-4 text-white transition-all hover:shadow-lg hover:scale-105"
             >
               Get Started
@@ -170,7 +171,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                 </li>
               </ul>
               <button
-                onClick={onGetStarted}
+                onClick={onGetStartedFree}
                 className="w-full rounded-lg border-2 border-gray-300 py-3 transition-colors hover:bg-gray-50"
               >
                 Get Started
@@ -182,7 +183,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                 Popular
               </div>
               <h3 className="text-2xl font-bold mb-2">Pro</h3>
-              <div className="text-4xl font-bold mb-6">₹299<span className="text-lg opacity-80">/month</span></div>
+              <div className="text-4xl font-bold mb-6">₹99<span className="text-lg opacity-80">/month</span></div>
               <ul className="space-y-3 mb-8 text-left">
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5" />
@@ -206,7 +207,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                 </li>
               </ul>
               <button
-                onClick={onGetStarted}
+                onClick={onGetStartedPro}
                 className="w-full rounded-lg bg-white py-3 font-medium text-green-600 transition-colors hover:bg-gray-100"
               >
                 Upgrade to Pro

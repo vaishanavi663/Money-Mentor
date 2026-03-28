@@ -1,6 +1,10 @@
+export type UserPlan = "free" | "pro";
+
 export interface UserProfile {
   name: string;
   email: string;
+  plan: UserPlan;
+  planExpiresAt: string | null;
   age: number;
   monthlyIncome: number;
   monthlyExpenses: number;

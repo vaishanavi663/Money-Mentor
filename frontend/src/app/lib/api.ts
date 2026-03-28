@@ -9,10 +9,16 @@ import type {
 } from "../types/finance";
 import type { UserProfile } from "../types/userProfile";
 
+export type UserPlan = "free" | "pro";
+
+export type AiChatTurn = { role: "user" | "model"; parts: { text: string }[] };
+
 export interface AuthUser {
   id: string;
   name: string;
   email: string;
+  plan: UserPlan;
+  planExpiresAt: string | null;
 }
 
 export interface AuthResponse {
@@ -152,7 +158,7 @@ export const api = {
 
   getTransactions: async () => {
     const res = await request<TransactionListResponse>(`/transactions${transactionListQuery({ limit: 200, offset: 0 })}`);
-    return res.transactions.map((row) => ({
+    const transactions = res.transactions.map((row) => ({
       id: row.id,
       type: row.type,
       category: row.category,
@@ -160,6 +166,7 @@ export const api = {
       amount: row.amount,
       date: (row.transactionDate || "").slice(0, 10),
     })) as Transaction[];
+    return { transactions, total: res.total };
   },
 
   addTransaction: (transaction: Omit<Transaction, "id">) =>
@@ -185,11 +192,14 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(profile),
     }),
-  register: (payload: { fullName: string; email: string; password: string }) =>
+  register: (payload: { fullName: string; email: string; password: string; plan?: UserPlan }) =>
     request<AuthResponse>("/auth/register", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  upgradeToPro: () =>
+    request<{ user: AuthUser; message: string }>("/auth/upgrade-pro", { method: "POST" }),
   login: (payload: { email: string; password: string }) =>
     request<AuthResponse>("/auth/login", {
       method: "POST",
@@ -197,4 +207,10 @@ export const api = {
     }),
   getMe: () => request<{ user: AuthUser }>("/auth/me"),
   logout: () => request<{ message: string }>("/auth/logout", { method: "POST" }),
+
+  aiChat: (body: { message: string; conversationHistory: AiChatTurn[] }) =>
+    request<{ reply: string }>("/ai/chat", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };

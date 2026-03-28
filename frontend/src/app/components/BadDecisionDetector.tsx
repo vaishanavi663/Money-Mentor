@@ -1,5 +1,6 @@
 import { AlertTriangle, X, ShoppingBag, Plane, TrendingDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { usePlan } from '../../hooks/usePlan';
 
 interface BadDecision {
   id: string;
@@ -17,6 +18,11 @@ interface BadDecisionDetectorProps {
 }
 
 export function BadDecisionDetector({ decisions, onDismiss, onSaveInstead }: BadDecisionDetectorProps) {
+  const { isPro } = usePlan();
+  if (!isPro) {
+    return null;
+  }
+
   const getIcon = (type: string) => {
     switch (type) {
       case 'expense':

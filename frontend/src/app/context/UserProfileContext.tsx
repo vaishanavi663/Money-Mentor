@@ -7,8 +7,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { api, getStoredToken } from "../lib/api";
-import type { UserProfile } from "../types/userProfile";
+import { api, getStoredToken, type AuthUser } from "../lib/api";
+import type { UserProfile, UserPlan } from "../types/userProfile";
 
 export const USER_PROFILE_STORAGE_KEY = "mm_user_profile";
 
@@ -17,6 +17,8 @@ export type { UserProfile };
 const DEFAULT_PROFILE: UserProfile = {
   name: "",
   email: "",
+  plan: "free",
+  planExpiresAt: null,
   age: 28,
   monthlyIncome: 60000,
   monthlyExpenses: 35000,
@@ -89,13 +91,21 @@ function calculateEstimatedTaxSavings(profile: UserProfile) {
   return Math.round(annualEligible * taxRate);
 }
 
+function normalizeUserPlan(plan: unknown): UserPlan {
+  return plan === "pro" ? "pro" : "free";
+}
+
 function withDerivedFields(profile: UserProfile): UserProfile {
   const monthlySavings = toSafeNumber(profile.monthlyIncome - profile.monthlyExpenses);
   const savingsRate = profile.monthlyIncome > 0 ? toSafeNumber((monthlySavings / profile.monthlyIncome) * 100) : 0;
   const annualIncome = toSafeNumber(profile.monthlyIncome * 12);
+  const plan = normalizeUserPlan(profile.plan);
+  const planExpiresAt = profile.planExpiresAt ?? null;
 
   const merged = {
     ...profile,
+    plan,
+    planExpiresAt,
     monthlySavings,
     savingsRate: Number(savingsRate.toFixed(2)),
     annualIncome,
@@ -110,8 +120,17 @@ function withDerivedFields(profile: UserProfile): UserProfile {
   };
 }
 
+export interface UpgradeModalPayload {
+  featureName: string;
+  description?: string;
+}
+
 interface UserProfileContextValue {
   profile: UserProfile;
+  upgradeModal: UpgradeModalPayload | null;
+  showUpgradeModal: (payload: UpgradeModalPayload) => void;
+  closeUpgradeModal: () => void;
+  mergePlanFromAuthUser: (user: AuthUser) => void;
   updateProfile: (updates: Partial<UserProfile>) => void;
   completeOnboarding: (
     payload: Pick<
@@ -125,7 +144,9 @@ interface UserProfileContextValue {
       | "primaryConcern"
     >,
   ) => void;
-  setIdentity: (identity: Pick<UserProfile, "name" | "email">) => void;
+  setIdentity: (
+    identity: Pick<UserProfile, "name" | "email"> & Partial<Pick<UserProfile, "plan" | "planExpiresAt">>,
+  ) => void;
   hydrateFromServer: (serverProfile: UserProfile) => void;
   clearProfile: () => void;
 }
@@ -145,10 +166,45 @@ function getStoredProfile(): UserProfile {
 
 export function UserProfileProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile>(() => getStoredProfile());
+  const [upgradeModal, setUpgradeModal] = useState<UpgradeModalPayload | null>(null);
 
   useEffect(() => {
     localStorage.setItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(profile));
   }, [profile]);
+
+  const showUpgradeModal = useCallback((payload: UpgradeModalPayload) => {
+    setUpgradeModal(payload);
+  }, []);
+
+  const closeUpgradeModal = useCallback(() => {
+    setUpgradeModal(null);
+  }, []);
+
+  const mergePlanFromAuthUser = useCallback((user: AuthUser) => {
+    setProfile((previous) =>
+      withDerivedFields({
+        ...previous,
+        plan: normalizeUserPlan(user.plan),
+        planExpiresAt: user.planExpiresAt ?? null,
+      }),
+    );
+    try {
+      const raw = localStorage.getItem("moneymentor-user");
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, unknown>;
+        localStorage.setItem(
+          "moneymentor-user",
+          JSON.stringify({
+            ...parsed,
+            plan: user.plan,
+            planExpiresAt: user.planExpiresAt,
+          }),
+        );
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const updateProfile = useCallback((updates: Partial<UserProfile>) => {
     setProfile((previous) => withDerivedFields({ ...previous, ...updates }));
@@ -172,9 +228,14 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const setIdentity = useCallback((identity: Pick<UserProfile, "name" | "email">) => {
-    setProfile((previous) => withDerivedFields({ ...previous, ...identity }));
-  }, []);
+  const setIdentity = useCallback(
+    (
+      identity: Pick<UserProfile, "name" | "email"> & Partial<Pick<UserProfile, "plan" | "planExpiresAt">>,
+    ) => {
+      setProfile((previous) => withDerivedFields({ ...previous, ...identity }));
+    },
+    [],
+  );
 
   const hydrateFromServer = useCallback((serverProfile: UserProfile) => {
     setProfile(withDerivedFields({ ...DEFAULT_PROFILE, ...serverProfile }));
@@ -183,18 +244,34 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   const clearProfile = useCallback(() => {
     localStorage.removeItem(USER_PROFILE_STORAGE_KEY);
     setProfile(withDerivedFields(DEFAULT_PROFILE));
+    setUpgradeModal(null);
   }, []);
 
   const value = useMemo<UserProfileContextValue>(
     () => ({
       profile,
+      upgradeModal,
+      showUpgradeModal,
+      closeUpgradeModal,
+      mergePlanFromAuthUser,
       updateProfile,
       completeOnboarding,
       setIdentity,
       hydrateFromServer,
       clearProfile,
     }),
-    [profile, updateProfile, completeOnboarding, setIdentity, hydrateFromServer, clearProfile],
+    [
+      profile,
+      upgradeModal,
+      showUpgradeModal,
+      closeUpgradeModal,
+      mergePlanFromAuthUser,
+      updateProfile,
+      completeOnboarding,
+      setIdentity,
+      hydrateFromServer,
+      clearProfile,
+    ],
   );
 
   return <UserProfileContext.Provider value={value}>{children}</UserProfileContext.Provider>;

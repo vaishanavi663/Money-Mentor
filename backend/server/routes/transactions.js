@@ -248,8 +248,14 @@ router.get("/", async (req, res) => {
   const month = req.query.month != null ? parseInt(String(req.query.month), 10) : null;
   const year = req.query.year != null ? parseInt(String(req.query.year), 10) : null;
   const categoryFilter = req.query.category ? String(req.query.category).trim() : null;
-  const limit = Math.min(parseInt(String(req.query.limit || "50"), 10) || 50, 200);
+  let limit = Math.min(parseInt(String(req.query.limit || "50"), 10) || 50, 200);
   const offset = Math.max(parseInt(String(req.query.offset || "0"), 10) || 0, 0);
+
+  const { rows: planRows } = await pool.query("SELECT plan FROM users WHERE id = $1 LIMIT 1", [userId]);
+  const userPlan = String(planRows[0]?.plan || "free").toLowerCase() === "pro" ? "pro" : "free";
+  if (userPlan === "free") {
+    limit = Math.min(limit, 20);
+  }
 
   const conditions = ["user_id = $1"];
   const params = [userId];

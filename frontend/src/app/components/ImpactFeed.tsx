@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Brain, TrendingUp, TrendingDown, Minus, ChevronRight, X, Clock } from 'lucide-react';
 import { useUserProfile } from '../context/UserProfileContext';
 import { api } from '../lib/api';
+import { usePlan } from '../../hooks/usePlan';
 
 interface ImpactInsight {
   id: string;
@@ -16,6 +17,7 @@ interface ImpactInsight {
 
 export function ImpactFeed() {
   const { profile } = useUserProfile();
+  const { isPro } = usePlan();
   const [isOpen, setIsOpen] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [transactionCount, setTransactionCount] = useState<number | null>(null);
@@ -131,6 +133,10 @@ export function ImpactFeed() {
         };
     }
   };
+
+  if (!isPro) {
+    return null;
+  }
 
   if (!isOpen) {
     return (

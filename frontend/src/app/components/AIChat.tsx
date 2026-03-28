@@ -1,6 +1,15 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Bot, User, Mic, TrendingUp, PiggyBank, AlertTriangle } from 'lucide-react';
 import { useUserProfile } from '../context/UserProfileContext';
+import { usePlan } from '../../hooks/usePlan';
+import { api, type AiChatTurn } from '../lib/api';
+
+const FREE_AI_MSGS_PER_DAY = 10;
+
+function userMessageCountKey(email: string) {
+  const day = new Date().toISOString().slice(0, 10);
+  return `mm_ai_chat_user_msgs_${email || 'anon'}_${day}`;
+}
 
 interface Message {
   id: string;
@@ -12,6 +21,7 @@ interface Message {
 
 export function AIChat() {
   const { profile } = useUserProfile();
+  const { isPro, showUpgradeModal } = usePlan();
   const systemPrompt = `User profile: ${JSON.stringify({
     name: profile.name,
     age: profile.age,
@@ -36,7 +46,29 @@ export function AIChat() {
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [userMsgsToday, setUserMsgsToday] = useState(0);
+  const [conversationHistory, setConversationHistory] = useState<AiChatTurn[]>([]);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const historyRef = useRef<AiChatTurn[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    historyRef.current = conversationHistory;
+  }, [conversationHistory]);
+
+  const readStoredUserCount = useCallback(() => {
+    try {
+      const raw = localStorage.getItem(userMessageCountKey(profile.email));
+      const n = parseInt(raw || '0', 10);
+      return Number.isFinite(n) ? n : 0;
+    } catch {
+      return 0;
+    }
+  }, [profile.email]);
+
+  useEffect(() => {
+    setUserMsgsToday(readStoredUserCount());
+  }, [readStoredUserCount]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -46,56 +78,75 @@ export function AIChat() {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  const handleSend = async (overrideText?: string) => {
+    const text = (overrideText ?? input).trim();
+    if (!text) return;
+
+    let nextUserCount = 0;
+    if (!isPro) {
+      const used = readStoredUserCount();
+      if (used >= FREE_AI_MSGS_PER_DAY) {
+        return;
+      }
+      nextUserCount = used + 1;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
-      content: input,
+      content: text,
       timestamp: new Date(),
     };
 
-    setMessages([...messages, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInput('');
+    setSendError(null);
+    if (!isPro && nextUserCount > 0) {
+      try {
+        localStorage.setItem(userMessageCountKey(profile.email), String(nextUserCount));
+      } catch {
+        /* ignore */
+      }
+      setUserMsgsToday(nextUserCount);
+    }
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponses = [
-        {
-          content: `Your current monthly savings are ₹${Math.max(0, profile.monthlySavings).toLocaleString('en-IN')}. If we improve expenses by 10%, your FIRE age can improve from ${profile.fireAge}.`,
-          suggestions: ['See breakdown', 'Set budget', 'Improve FIRE plan'],
-        },
-        {
-          content: `Based on your ${profile.riskProfile} profile and goals (${profile.goals.join(', ') || 'wealth creation'}), start a SIP around ₹${profile.recommendedSIP.toLocaleString('en-IN')} monthly.`,
-          suggestions: ['How to start SIP', 'Best fund mix', 'Calculate returns'],
-        },
-        {
-          content: `You can potentially save around ₹${profile.estimatedTaxSavings.toLocaleString('en-IN')} in taxes this year with 80C + NPS aligned to your profile.`,
-          suggestions: ['Show tax calculator', 'Investment options', 'Learn more'],
-        },
-      ];
+    const userTurn: AiChatTurn = { role: 'user', parts: [{ text }] };
+    const withUser = [...historyRef.current, userTurn];
+    historyRef.current = withUser;
+    setConversationHistory(withUser);
 
-      const randomResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)];
+    try {
+      const { reply } = await api.aiChat({
+        message: text,
+        conversationHistory: withUser,
+      });
+      const modelTurn: AiChatTurn = { role: 'model', parts: [{ text: reply }] };
+      const withModel = [...withUser, modelTurn];
+      historyRef.current = withModel;
+      setConversationHistory(withModel);
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
-        content: randomResponse.content,
-        suggestions: randomResponse.suggestions,
+        content: reply,
         timestamp: new Date(),
       };
-
       setMessages((prev) => [...prev, aiMessage]);
+    } catch {
+      historyRef.current = withUser.slice(0, -1);
+      setConversationHistory(historyRef.current);
+      setSendError('AI unavailable. Please try again.');
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
-    setInput(suggestion);
-    handleSend();
+    void handleSend(suggestion);
   };
+
+  const atFreeLimit = !isPro && userMsgsToday >= FREE_AI_MSGS_PER_DAY;
 
   return (
     <div className="relative z-10 flex flex-col h-full bg-white/45 backdrop-blur-[2px]">
@@ -118,6 +169,37 @@ export function AIChat() {
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        {atFreeLimit && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            You&apos;ve used {FREE_AI_MSGS_PER_DAY}/{FREE_AI_MSGS_PER_DAY} free messages today. Upgrade to Pro for
+            unlimited.{' '}
+            <button
+              type="button"
+              className="font-semibold underline"
+              onClick={() =>
+                showUpgradeModal(
+                  'Unlimited AI chat',
+                  'Pro removes the daily message cap so you can keep asking MoneyMentor anything, anytime.',
+                )
+              }
+            >
+              Upgrade to Pro
+            </button>
+          </div>
+        )}
+        {!isPro && !atFreeLimit && (
+          <p className="text-xs text-gray-500">
+            Free plan: {userMsgsToday}/{FREE_AI_MSGS_PER_DAY} messages today
+          </p>
+        )}
+        {sendError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+            {sendError}{' '}
+            <button type="button" className="font-semibold underline" onClick={() => setSendError(null)}>
+              Dismiss
+            </button>
+          </div>
+        )}
         {messages.map((message) => (
           <div
             key={message.id}
@@ -221,13 +303,15 @@ export function AIChat() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+            onKeyDown={(e) => e.key === 'Enter' && void handleSend()}
             placeholder="Type your message... (Hindi/English)"
-            className="flex-1 px-4 py-3 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500"
+            disabled={atFreeLimit}
+            className="flex-1 px-4 py-3 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 disabled:cursor-not-allowed disabled:opacity-60"
           />
           <button
-            onClick={handleSend}
-            className="w-10 h-10 bg-gradient-to-r from-green-600 to-blue-600 rounded-full flex items-center justify-center hover:shadow-lg transition-all"
+            onClick={() => void handleSend()}
+            disabled={atFreeLimit}
+            className="w-10 h-10 bg-gradient-to-r from-green-600 to-blue-600 rounded-full flex items-center justify-center hover:shadow-lg transition-all disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Send className="w-5 h-5 text-white" />
           </button>

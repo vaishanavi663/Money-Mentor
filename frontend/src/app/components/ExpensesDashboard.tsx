@@ -8,11 +8,14 @@ import { ExpenseChart } from './ExpenseChart';
 import { api } from '../lib/api';
 import type { Transaction } from '../types/finance';
 import { useUserProfile } from '../context/UserProfileContext';
+import { usePlan } from '../../hooks/usePlan';
 
 export function ExpensesDashboard() {
   const queryClient = useQueryClient();
   const { profile } = useUserProfile();
+  const { isPro, showUpgradeModal } = usePlan();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactionTotal, setTransactionTotal] = useState(0);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,8 +62,9 @@ export function ExpensesDashboard() {
     try {
       setLoading(true);
       setError(null);
-      const data = await api.getTransactions();
-      setTransactions(data);
+      const { transactions: rows, total } = await api.getTransactions();
+      setTransactions(rows);
+      setTransactionTotal(total);
     } catch (loadError) {
       setError('Could not load transactions. Start API server and check DB connection.');
     } finally {
@@ -202,6 +206,9 @@ export function ExpensesDashboard() {
               <div>
                 <p className="text-sm text-gray-600 mb-1">Total Transactions</p>
                 <p className="text-2xl font-bold">{transactions.length}</p>
+                {!isPro && transactionTotal > transactions.length && (
+                  <p className="mt-1 text-xs text-amber-700">Showing latest {transactions.length} on Free</p>
+                )}
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                 <Receipt className="w-6 h-6 text-blue-600" />
@@ -291,6 +298,23 @@ export function ExpensesDashboard() {
               </div>
             ))}
           </div>
+          {!isPro && transactionTotal > 20 && (
+            <div className="border-t border-amber-100 bg-amber-50 px-4 py-3 text-center text-sm text-amber-900">
+              See all {transactionTotal} transactions —{' '}
+              <button
+                type="button"
+                className="font-semibold text-amber-950 underline decoration-amber-700"
+                onClick={() =>
+                  showUpgradeModal(
+                    'Full transaction history',
+                    'Free shows your 20 most recent entries. Pro unlocks your complete ledger in one place.',
+                  )
+                }
+              >
+                Upgrade to Pro
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Insights */}

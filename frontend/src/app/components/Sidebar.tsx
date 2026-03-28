@@ -1,7 +1,8 @@
-import { LayoutDashboard, MessageCircle, Receipt, Sparkles, Activity, Bot, ChevronLeft, ChevronRight, User, Settings, LogOut, Star, Percent, Landmark } from 'lucide-react';
+import { LayoutDashboard, MessageCircle, Receipt, Sparkles, Activity, Bot, ChevronLeft, ChevronRight, User, Settings, LogOut, Star, Percent, Landmark, Lock } from 'lucide-react';
 import { useState } from 'react';
 import type { AuthUser } from '../lib/api';
 import { useUserProfile } from '../context/UserProfileContext';
+import { usePlan } from '../../hooks/usePlan';
 
 type Page = 'dashboard' | 'chat' | 'expenses' | 'simulator' | 'health' | 'tax-tips' | 'schemes';
 
@@ -23,6 +24,7 @@ export function Sidebar({
   onLogout,
 }: SidebarProps) {
   const { profile } = useUserProfile();
+  const { isPro, showUpgradeModal } = usePlan();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
   // All menu items in a flat structure
@@ -76,10 +78,20 @@ export function Sidebar({
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activePage === item.id;
+            const simulatorLocked = item.id === 'simulator' && !isPro;
             return (
               <li key={item.id}>
                 <button
-                  onClick={() => onPageChange(item.id)}
+                  onClick={() => {
+                    if (simulatorLocked) {
+                      showUpgradeModal(
+                        'Future Simulator',
+                        'Run scenario planning and leak detection — unlock with Pro (₹99/mo).',
+                      );
+                      return;
+                    }
+                    onPageChange(item.id);
+                  }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative group ${
                     isActive
                       ? 'bg-gradient-to-r from-green-600 to-blue-600 text-white shadow-md shadow-green-200'
@@ -88,7 +100,15 @@ export function Sidebar({
                   title={isCollapsed ? item.label : ''}
                 >
                   <Icon className="w-5 h-5 flex-shrink-0" />
-                  {!isCollapsed && <span className="font-medium">{item.label}</span>}
+                  {!isCollapsed && (
+                    <span className="flex flex-1 items-center gap-1.5 font-medium">
+                      {item.label}
+                      {simulatorLocked && <Lock className="h-3.5 w-3.5 text-amber-600" aria-hidden />}
+                    </span>
+                  )}
+                  {isCollapsed && simulatorLocked && (
+                    <Lock className="absolute right-1 top-1/2 h-3 w-3 -translate-y-1/2 text-amber-600" aria-hidden />
+                  )}
                   
                   {/* Tooltip for collapsed state */}
                   {isCollapsed && (
@@ -167,7 +187,15 @@ export function Sidebar({
               
               <button 
                 className="w-full px-4 py-2.5 text-left text-sm hover:bg-gradient-to-r hover:from-green-50 hover:to-blue-50 flex items-center gap-3 transition-colors group"
-                onClick={() => setShowProfileDropdown(false)}
+                onClick={() => {
+                  setShowProfileDropdown(false);
+                  if (!isPro) {
+                    showUpgradeModal(
+                      'Money Mentor Pro',
+                      'Unlock simulator, voice, impact feed, unlimited chat, full history, PDF export, and Android SMS sync.',
+                    );
+                  }
+                }}
               >
                 <Star className="w-4 h-4 text-green-600 fill-green-600" />
                 <span className="font-medium text-green-700 group-hover:text-green-800">Upgrade to Pro</span>

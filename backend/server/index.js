@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { pool } from "./db.js";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
@@ -85,6 +86,13 @@ async function ensureSchema() {
   `);
 
   await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free';
+  `);
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMPTZ;
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS user_profiles (
       user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       age INTEGER NOT NULL DEFAULT 28,
@@ -108,6 +116,37 @@ async function ensureSchema() {
 
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
+}
+
+function normalizePlan(plan) {
+  const p = String(plan || "").trim().toLowerCase();
+  return p === "pro" ? "pro" : "free";
+}
+
+async function getUserPlanPayload(userId) {
+  const { rows } = await pool.query(
+    "SELECT plan, plan_expires_at FROM users WHERE id = $1 LIMIT 1",
+    [userId],
+  );
+  const row = rows[0];
+  if (!row) {
+    return { plan: "free", planExpiresAt: null };
+  }
+  return {
+    plan: normalizePlan(row.plan),
+    planExpiresAt: row.plan_expires_at ? new Date(row.plan_expires_at).toISOString() : null,
+  };
+}
+
+function userRowToApiUser(row) {
+  if (!row) return null;
+  return {
+    id: row.id_text ?? String(row.id),
+    name: row.name ?? row.full_name,
+    email: row.email,
+    plan: normalizePlan(row.plan),
+    planExpiresAt: row.plan_expires_at ? new Date(row.plan_expires_at).toISOString() : null,
+  };
 }
 
 function validateRegisterInput({ fullName, email, password }) {
@@ -250,6 +289,8 @@ async function getProfileHandler(req, res) {
       SELECT
         u.full_name AS name,
         u.email,
+        u.plan,
+        u.plan_expires_at,
         up.user_id AS has_profile_row,
         up.age,
         up.monthly_income,
@@ -307,7 +348,13 @@ async function getProfileHandler(req, res) {
   }
 
   const profile = withDerivedFields(raw);
-  return res.json({ profile: profileToApiResponse(profile) });
+  const planPayload = {
+    plan: normalizePlan(row.plan),
+    planExpiresAt: row.plan_expires_at ? new Date(row.plan_expires_at).toISOString() : null,
+  };
+  return res.json({
+    profile: { ...profileToApiResponse(profile), ...planPayload },
+  });
 }
 
 app.get("/api/health", async (_req, res) => {
@@ -335,7 +382,7 @@ app.get("/api/debug/db-status", async (_req, res) => {
 });
 
 app.post("/api/auth/register", async (req, res) => {
-  const { fullName, email, password } = req.body || {};
+  const { fullName, email, password, plan: rawPlan } = req.body || {};
   const validationError = validateRegisterInput({ fullName, email, password });
   if (validationError) {
     return res.status(400).json({ error: validationError });
@@ -343,11 +390,15 @@ app.post("/api/auth/register", async (req, res) => {
 
   const normalizedEmail = normalizeEmail(email);
   const passwordHash = hashPassword(password);
+  const signupPlan = normalizePlan(rawPlan);
+  const planExpiresAt = null;
 
   try {
     const { rows } = await pool.query(
-      "INSERT INTO users (full_name, email, password_hash) VALUES ($1, $2, $3) RETURNING id, id::text AS id_text, full_name AS name, email",
-      [String(fullName).trim(), normalizedEmail, passwordHash],
+      `INSERT INTO users (full_name, email, password_hash, plan, plan_expires_at)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, id::text AS id_text, full_name AS name, email, plan, plan_expires_at`,
+      [String(fullName).trim(), normalizedEmail, passwordHash, signupPlan, planExpiresAt],
     );
 
     const authToken = issueJwtToken({ id: rows[0].id, email: rows[0].email });
@@ -359,11 +410,7 @@ app.post("/api/auth/register", async (req, res) => {
     return res.status(201).json({
       message: "Registration successful",
       token: authToken.token,
-      user: {
-        id: rows[0].id_text,
-        name: rows[0].name,
-        email: rows[0].email,
-      },
+      user: userRowToApiUser(rows[0]),
     });
   } catch (error) {
     if (error?.code === "23505") {
@@ -382,7 +429,7 @@ app.post("/api/auth/login", async (req, res) => {
 
   const normalizedEmail = normalizeEmail(email);
   const { rows } = await pool.query(
-    "SELECT id, id::text AS id_text, full_name, email, password_hash FROM users WHERE email = $1 LIMIT 1",
+    "SELECT id, id::text AS id_text, full_name, email, password_hash, plan, plan_expires_at FROM users WHERE email = $1 LIMIT 1",
     [normalizedEmail],
   );
   const user = rows[0];
@@ -400,17 +447,13 @@ app.post("/api/auth/login", async (req, res) => {
   return res.json({
     message: "Login successful",
     token: authToken.token,
-    user: {
-      id: user.id_text,
-      name: user.full_name,
-      email: user.email,
-    },
+    user: userRowToApiUser({ ...user, name: user.full_name }),
   });
 });
 
 app.get("/api/auth/me", requireAuth, async (req, res) => {
   const { rows } = await pool.query(
-    "SELECT id::text AS id, full_name AS name, email FROM users WHERE id = $1 LIMIT 1",
+    "SELECT id::text AS id_text, id, full_name AS name, email, plan, plan_expires_at FROM users WHERE id = $1 LIMIT 1",
     [req.auth.userId],
   );
 
@@ -418,7 +461,19 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
     return res.status(404).json({ error: "User not found" });
   }
 
-  return res.json({ user: rows[0] });
+  return res.json({ user: userRowToApiUser(rows[0]) });
+});
+
+app.post("/api/auth/upgrade-pro", requireAuth, async (req, res) => {
+  await pool.query("UPDATE users SET plan = 'pro', plan_expires_at = NULL WHERE id = $1", [req.auth.userId]);
+  const { rows } = await pool.query(
+    "SELECT id::text AS id_text, id, full_name AS name, email, plan, plan_expires_at FROM users WHERE id = $1 LIMIT 1",
+    [req.auth.userId],
+  );
+  if (!rows[0]) {
+    return res.status(404).json({ error: "User not found" });
+  }
+  return res.json({ user: userRowToApiUser(rows[0]), message: "Upgraded to Pro" });
 });
 
 app.post("/api/auth/logout", requireAuth, async (req, res) => {
@@ -504,7 +559,10 @@ app.put("/api/profile", requireAuth, async (req, res) => {
     ],
   );
 
-  return res.json({ profile: profileToApiResponse(profile) });
+  const planPayload = await getUserPlanPayload(userId);
+  return res.json({
+    profile: { ...profileToApiResponse(profile), ...planPayload },
+  });
 });
 
 app.use("/api/transactions", requireAuth, createTransactionsRouter());
@@ -573,6 +631,192 @@ app.get("/api/stats", requireAuth, async (req, res) => {
   });
 });
 
+function formatInrForPrompt(n) {
+  const num = Number(n) || 0;
+  return `₹${num.toLocaleString("en-IN")}`;
+}
+
+/** Gemini requires history to start with `user` and to alternate user/model. */
+function normalizeChatHistoryForGemini(history) {
+  const out = [];
+  for (const h of history) {
+    if (!h?.parts?.[0] || typeof h.parts[0].text !== "string") continue;
+    const role = h.role === "model" ? "model" : "user";
+    const text = String(h.parts[0].text).trim();
+    if (!text) continue;
+    const last = out[out.length - 1];
+    if (last && last.role === role) {
+      last.parts[0].text = `${last.parts[0].text}\n${text}`;
+      continue;
+    }
+    out.push({ role, parts: [{ text }] });
+  }
+  while (out.length > 0 && out[0].role !== "user") {
+    out.shift();
+  }
+  return out;
+}
+
+app.post("/api/ai/chat", requireAuth, async (req, res) => {
+  try {
+    const { message, conversationHistory } = req.body || {};
+    const userMessage = String(message || "").trim();
+    if (!userMessage) {
+      return res.status(400).json({ error: "message is required" });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
+    if (!apiKey) {
+      return res.status(500).json({ error: "AI unavailable" });
+    }
+
+    const { rows: profileRows } = await pool.query(
+      `
+      SELECT monthly_income, monthly_expenses, goals, current_investments, risk_profile
+      FROM user_profiles
+      WHERE user_id = $1
+      LIMIT 1
+      `,
+      [req.auth.userId],
+    );
+
+    let monthly_income = 0;
+    let monthly_expenses = 0;
+    let goals = "[]";
+    let investments = "[]";
+    let risk_profile = "moderate";
+
+    if (profileRows[0]) {
+      monthly_income = Number(profileRows[0].monthly_income) || 0;
+      monthly_expenses = Number(profileRows[0].monthly_expenses) || 0;
+      goals = JSON.stringify(profileRows[0].goals ?? []);
+      investments = JSON.stringify(profileRows[0].current_investments ?? []);
+      risk_profile = String(profileRows[0].risk_profile || "moderate");
+    }
+
+    const savings = monthly_income - monthly_expenses;
+    const savings_rate = monthly_income > 0 ? ((savings / monthly_income) * 100).toFixed(1) : "0";
+
+    const { rows: txRows } = await pool.query(
+      `
+      SELECT
+        COALESCE(SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END), 0) AS total_debit,
+        COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END), 0) AS total_credit
+      FROM transactions
+      WHERE user_id = $1
+        AND transaction_date >= date_trunc('month', CURRENT_TIMESTAMP)
+        AND transaction_date < date_trunc('month', CURRENT_TIMESTAMP) + interval '1 month'
+      `,
+      [req.auth.userId],
+    );
+
+    const { rows: catRows } = await pool.query(
+      `
+      SELECT category, COALESCE(SUM(amount), 0) AS value
+      FROM transactions
+      WHERE user_id = $1
+        AND type = 'debit'
+        AND transaction_date >= date_trunc('month', CURRENT_TIMESTAMP)
+        AND transaction_date < date_trunc('month', CURRENT_TIMESTAMP) + interval '1 month'
+      GROUP BY category
+      ORDER BY value DESC
+      LIMIT 3
+      `,
+      [req.auth.userId],
+    );
+
+    const total_debit = Number(txRows[0]?.total_debit || 0);
+    const total_credit = Number(txRows[0]?.total_credit || 0);
+    const top_categories =
+      catRows.length > 0
+        ? catRows.map((r) => `${r.category}: ${formatInrForPrompt(r.value)}`).join(", ")
+        : "none yet";
+
+    const systemPrompt = `You are Money Mentor, a friendly AI financial advisor for Indian users.
+Be casual, warm, and helpful. Use simple, clear language. Keep responses under 3 sentences when the user is on voice.
+
+Language (very important):
+- Reply in the SAME language as the user's latest message. Match them closely.
+- If they write or speak in English only, answer in natural English only — do not mix Hindi or Hinglish unless they did.
+- If they use Hindi, answer in Hindi.
+- If they naturally mix Hindi and English (Hinglish), you may reply in the same mixed style.
+- Do not default to Hinglish when the user used plain English.
+
+Current user's financial snapshot:
+- Monthly income: ${formatInrForPrompt(monthly_income)}
+- Monthly expenses: ${formatInrForPrompt(monthly_expenses)}  
+- Monthly savings: ${formatInrForPrompt(savings)}
+- Savings rate: ${savings_rate}%
+- Risk profile: ${risk_profile}
+- Current investments: ${investments}
+- Financial goals: ${goals}
+- This month's spending: ${formatInrForPrompt(total_debit)} spent, ${formatInrForPrompt(total_credit)} received
+- Top spending categories this month: ${top_categories}
+
+Rules:
+- Always use the user's REAL numbers above, never make up figures
+- For voice, keep it under 3 sentences
+- Give actionable, specific advice based on their actual data
+- If they ask about expenses/spending, use the real DB numbers
+- Be encouraging, not preachy`;
+
+    const geminiModel = String(process.env.GEMINI_MODEL || "gemini-2.5-flash").trim();
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: geminiModel,
+      systemInstruction: systemPrompt,
+    });
+
+    const rawHistory = Array.isArray(conversationHistory) ? conversationHistory : [];
+    const sanitized = rawHistory
+      .filter(
+        (h) =>
+          h &&
+          (h.role === "user" || h.role === "model") &&
+          Array.isArray(h.parts) &&
+          h.parts[0] &&
+          typeof h.parts[0].text === "string",
+      )
+      .map((h) => ({
+        role: h.role,
+        parts: [{ text: String(h.parts[0].text) }],
+      }));
+
+    let past = normalizeChatHistoryForGemini(sanitized);
+    if (
+      past.length > 0 &&
+      past[past.length - 1].role === "user" &&
+      past[past.length - 1].parts[0].text === userMessage
+    ) {
+      past = past.slice(0, -1);
+    }
+
+    const chat = model.startChat({ history: past });
+    const result = await chat.sendMessage(userMessage);
+    let reply = "";
+    try {
+      reply = (await result.response.text())?.trim() || "";
+    } catch (textErr) {
+      console.error("[ai/chat] empty or blocked response:", textErr?.message || textErr);
+    }
+
+    if (!reply) {
+      return res.status(500).json({ error: "AI unavailable" });
+    }
+
+    return res.json({ reply });
+  } catch (err) {
+    console.error(
+      "[ai/chat]",
+      err?.message || err,
+      err?.status ?? err?.statusCode ?? "",
+      process.env.GEMINI_MODEL || "gemini-2.5-flash",
+    );
+    return res.status(500).json({ error: "AI unavailable" });
+  }
+});
+
 app.use((req, res) => {
   res.status(404).json({
     error: "Not found",
@@ -583,6 +827,13 @@ app.use((req, res) => {
 });
 
 async function start() {
+  if (!process.env.GEMINI_API_KEY?.trim()) {
+    console.error(
+      "FATAL: GEMINI_API_KEY is missing. Set it in backend/.env (free key: https://aistudio.google.com).",
+    );
+    process.exit(1);
+  }
+
   try {
     await ensureSchema();
     await applyMigrations(pool);
@@ -596,6 +847,8 @@ async function start() {
   app.listen(port, () => {
     // eslint-disable-next-line no-console
     console.log(`API server running on http://localhost:${port}`);
+    // eslint-disable-next-line no-console
+    console.log(`Gemini model: ${String(process.env.GEMINI_MODEL || "gemini-2.5-flash").trim()}`);
   });
 }
 

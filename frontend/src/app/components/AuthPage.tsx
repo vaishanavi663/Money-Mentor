@@ -1,12 +1,14 @@
 import { FormEvent, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { api, type AuthResponse } from "../lib/api";
+import { api, type AuthResponse, type UserPlan } from "../lib/api";
 import { MotionBackground } from "./MotionBackground";
 
 type AuthMode = "login" | "register";
 
 interface AuthPageProps {
   mode: AuthMode;
+  /** Saved on register only; ignored for login. */
+  signupPlan?: UserPlan;
   onBackToLanding: () => void;
   onAuthSuccess: (payload: AuthResponse, source: AuthMode) => void | Promise<void>;
 }
@@ -27,7 +29,7 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-export function AuthPage({ mode, onBackToLanding, onAuthSuccess }: AuthPageProps) {
+export function AuthPage({ mode, signupPlan = "free", onBackToLanding, onAuthSuccess }: AuthPageProps) {
   const [activeMode, setActiveMode] = useState<AuthMode>(mode);
   const [registerData, setRegisterData] = useState<RegisterFormState>({
     fullName: "",
@@ -84,6 +86,7 @@ export function AuthPage({ mode, onBackToLanding, onAuthSuccess }: AuthPageProps
         fullName: registerData.fullName.trim(),
         email: registerData.email.trim(),
         password: registerData.password,
+        plan: signupPlan,
       });
       await onAuthSuccess(response, "register");
     } catch (submitError) {
@@ -133,6 +136,12 @@ export function AuthPage({ mode, onBackToLanding, onAuthSuccess }: AuthPageProps
           <div className="mb-6">
             <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
             <p className="mt-2 text-sm text-gray-600">{subtitle}</p>
+            {activeMode === "register" && signupPlan === "pro" && (
+              <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                You are signing up for <span className="font-semibold">Pro</span> (₹99/mo) — no payment step for this
+                demo; your account will be created as Pro.
+              </p>
+            )}
           </div>
 
           <div className="mb-6 grid grid-cols-2 rounded-xl bg-gray-100 p-1">

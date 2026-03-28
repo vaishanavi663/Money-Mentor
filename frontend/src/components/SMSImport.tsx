@@ -20,6 +20,7 @@ import {
 } from "@/app/components/ui/select";
 import type { ParsedSmsResult } from "@/app/types/finance";
 import { useParseSms, useSaveTransaction, useInvalidateTransactionQueries } from "@/hooks/useTransactions";
+import { usePlan } from "@/hooks/usePlan";
 
 export const INDIAN_SMS_CATEGORIES = [
   "Food & Dining",
@@ -37,6 +38,7 @@ export const INDIAN_SMS_CATEGORIES = [
 type PreviewRow = ParsedSmsResult & { category: string };
 
 export function SMSImport() {
+  const { isPro } = usePlan();
   const [smsText, setSmsText] = useState("");
   const [rows, setRows] = useState<PreviewRow[]>([]);
   const parseMut = useParseSms();
@@ -96,6 +98,24 @@ export function SMSImport() {
 
   return (
     <Card className="border border-gray-200 bg-white p-6 shadow-sm">
+      {isPro && (
+        <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4">
+          <h3 className="text-sm font-semibold text-emerald-900">Android SMS auto-import (Pro)</h3>
+          <p className="mt-1 text-sm text-emerald-800/90">
+            When enabled on your phone, new bank/UPI SMS can sync into MoneyMentor automatically — no pasting. Use the
+            manual box below anytime as a backup.
+          </p>
+          <Button type="button" variant="secondary" size="sm" className="mt-3" disabled>
+            Connect device (demo)
+          </Button>
+        </div>
+      )}
+      {!isPro && (
+        <p className="mb-4 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          Free plan: paste SMS manually. <span className="font-medium text-gray-800">Pro</span> adds Android SMS
+          auto-import.
+        </p>
+      )}
       <h2 className="mb-1 text-lg font-semibold text-gray-900">UPI / bank SMS import</h2>
       <p className="mb-4 text-sm text-gray-600">
         Paste your UPI/bank SMS messages here (one per line). We parse amounts, merchants, and dates — nothing is
