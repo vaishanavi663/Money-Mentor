@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Filter, Calendar, TrendingDown, Receipt, Trash2 } from 'lucide-react';
 import { AddTransactionForm } from './AddTransactionForm';
+import { BudgetTracker, type Budget } from './BudgetTracker';
+import { ExpenseChart } from './ExpenseChart';
 import { api } from '../lib/api';
 import type { Transaction } from '../types/finance';
+import { useUserProfile } from '../context/UserProfileContext';
 
 export function ExpensesDashboard() {
+  const { profile } = useUserProfile();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -54,6 +59,24 @@ export function ExpensesDashboard() {
     void loadTransactions();
   }, []);
 
+  useEffect(() => {
+    setBudgets((previous) => {
+      if (previous.length > 0) return previous;
+      return [
+        {
+          id: 'seed-food',
+          category: 'Food & Dining',
+          limit: Math.max(5000, Math.round(profile.monthlyExpenses * 0.2)),
+        },
+        {
+          id: 'seed-bills',
+          category: 'Bills & Utilities',
+          limit: Math.max(4000, Math.round(profile.monthlyExpenses * 0.25)),
+        },
+      ];
+    });
+  }, [profile.monthlyExpenses]);
+
   const handleAddTransaction = async (transaction: Omit<Transaction, 'id'>) => {
     await api.addTransaction(transaction);
     await loadTransactions();
@@ -64,10 +87,50 @@ export function ExpensesDashboard() {
     await api.deleteTransaction(id);
     await loadTransactions();
   };
+  const handleAddBudget = (budget: { category: string; limit: number }) => {
+    setBudgets((previous) => [...previous, { ...budget, id: crypto.randomUUID() }]);
+  };
+  const handleDeleteBudget = (id: string) => {
+    setBudgets((previous) => previous.filter((budget) => budget.id !== id));
+  };
 
   const expenseTransactions = transactions.filter((t) => t.type === 'expense');
   const totalSpent = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);
   const avgDailySpend = expenseTransactions.length > 0 ? totalSpent / expenseTransactions.length : 0;
+
+  const insightLines = useMemo(() => {
+    if (transactions.length === 0) {
+      return [
+        `No transactions yet. Your profile estimates ₹${profile.monthlyExpenses.toLocaleString('en-IN')}/month in expenses — add real entries to replace this with actual spending insights.`,
+        profile.primaryConcern
+          ? `You shared this concern: "${profile.primaryConcern}". Once we have transaction data, tips here will tie to that.`
+          : 'After you add expenses, we will highlight top categories and spending patterns.',
+      ];
+    }
+    if (expenseTransactions.length === 0) {
+      return [
+        'Only income is logged so far. Add expense transactions to see category insights and comparisons to your profile.',
+        `Onboarding spend estimate: ₹${profile.monthlyExpenses.toLocaleString('en-IN')}/mo — logging helps verify if that matches reality.`,
+      ];
+    }
+    const byCategory = expenseTransactions.reduce<Record<string, number>>((acc, t) => {
+      acc[t.category] = (acc[t.category] || 0) + t.amount;
+      return acc;
+    }, {});
+    const sorted = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
+    const top = sorted[0];
+    const pct =
+      totalSpent > 0 && top ? ((top[1] / totalSpent) * 100).toFixed(0) : '0';
+    return [
+      top
+        ? `Highest share of your recorded expenses: ${top[0]} (${pct}% of ₹${totalSpent.toLocaleString('en-IN')} total).`
+        : 'Keep categorizing expenses for clearer breakdowns.',
+      `You have ${expenseTransactions.length} expense line items — more consistent categories make trends easier to read.`,
+      profile.goals.length > 0
+        ? `Your goals include: ${profile.goals.slice(0, 4).join(', ')}${profile.goals.length > 4 ? '…' : ''}.`
+        : 'Complete onboarding goals so we can align tips with what you are saving for.',
+    ];
+  }, [expenseTransactions, profile.goals, profile.monthlyExpenses, profile.primaryConcern, totalSpent, transactions.length]);
 
   return (
     <div className="h-full overflow-y-auto bg-white/45 backdrop-blur-[2px] p-6">
@@ -211,10 +274,21 @@ export function ExpensesDashboard() {
         <div className="bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6">
           <h3 className="font-semibold mb-3">💡 AI Insights</h3>
           <ul className="space-y-2 text-sm text-gray-700">
-            <li>• Food & Dining pe 35% spend ho raha hai - budget limit cross kar liya!</li>
-            <li>• Last month ke comparison mein ₹5,000 kam kharcha hua. Great job! 👏</li>
-            <li>• Weekend pe spending zyada hoti hai. Watch out!</li>
+            {insightLines.map((line, i) => (
+              <li key={i}>• {line}</li>
+            ))}
           </ul>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <BudgetTracker
+            budgets={budgets}
+            transactions={transactions}
+            onAddBudget={handleAddBudget}
+            onDeleteBudget={handleDeleteBudget}
+            categories={categories}
+          />
+          <ExpenseChart transactions={transactions} seededMonthlyExpense={profile.monthlyExpenses} />
         </div>
       </div>
     </div>

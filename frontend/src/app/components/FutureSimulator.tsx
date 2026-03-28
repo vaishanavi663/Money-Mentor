@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Home, Car, GraduationCap, Palmtree, Plane, ShieldAlert, Coffee, Pizza, Tv, ShoppingBag, PartyPopper, CheckCircle, XCircle, TrendingUp, ArrowRight, AlertTriangle } from 'lucide-react';
+import { useUserProfile } from '../context/UserProfileContext';
 
 interface Goal {
   id: string;
@@ -119,8 +120,9 @@ interface FutureSimulatorProps {
 }
 
 export function FutureSimulator({ onNavigateToChat }: FutureSimulatorProps) {
-  const [monthlyIncome, setMonthlyIncome] = useState(50000);
-  const [currentSavings, setCurrentSavings] = useState(10000);
+  const { profile } = useUserProfile();
+  const [monthlyIncome, setMonthlyIncome] = useState(profile.monthlyIncome || 50000);
+  const [currentSavings, setCurrentSavings] = useState(Math.max(0, profile.monthlySavings || 10000));
   const [selectedGoal, setSelectedGoal] = useState<string>(goals[0].id);
   const [checkedLeaks, setCheckedLeaks] = useState<Set<string>>(new Set());
 

@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Brain, TrendingUp, TrendingDown, Minus, ChevronRight, X, Clock } from 'lucide-react';
+import { useUserProfile } from '../context/UserProfileContext';
+import { api } from '../lib/api';
 
 interface ImpactInsight {
   id: string;
@@ -13,70 +15,85 @@ interface ImpactInsight {
 }
 
 export function ImpactFeed() {
+  const { profile } = useUserProfile();
   const [isOpen, setIsOpen] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [transactionCount, setTransactionCount] = useState<number | null>(null);
 
-  const insights: ImpactInsight[] = [
-    {
-      id: '1',
-      type: 'positive',
-      action: '₹500 saved on groceries',
-      impact: 'Moved your Goa trip 1 day closer! 🎉',
-      tag: 'Smart Saving',
-      timeAgo: 'Just now',
-      details: 'By shopping smart and using discounts, you saved ₹500. Keep this up for better results!',
-      progressChange: 2,
-    },
-    {
-      id: '2',
-      type: 'caution',
-      action: '₹2,000 spent on dining out',
-      impact: 'Delays your laptop goal by 3 days',
-      tag: 'Spending Pattern',
-      timeAgo: '2h ago',
-      details: 'You\'ve spent ₹6,000 on dining this week. Consider cooking at home more often to stay on track.',
-      progressChange: -1.5,
-    },
-    {
-      id: '3',
-      type: 'positive',
-      action: 'Completed daily savings goal',
-      impact: 'Emergency fund: 68% complete now!',
-      tag: 'Goal Progress',
-      timeAgo: '5h ago',
-      details: 'Great job! You\'re building a strong financial safety net. Just ₹96,000 more to go.',
-      progressChange: 1,
-    },
-    {
-      id: '4',
-      type: 'neutral',
-      action: '₹1,500 auto-invested in mutual fund',
-      impact: 'Building wealth steadily 📈',
-      tag: 'Investment',
-      timeAgo: '1d ago',
-      details: 'Your SIP is working in the background. Stay consistent for long-term growth.',
-    },
-    {
-      id: '5',
-      type: 'caution',
-      action: '₹800 spent on food delivery',
-      impact: 'Small changes make big differences',
-      tag: 'Spending Alert',
-      timeAgo: '1d ago',
-      details: 'Food delivery costs add up quickly. This month: ₹3,200 on delivery. Consider meal prep!',
-      progressChange: -0.8,
-    },
-    {
-      id: '6',
-      type: 'positive',
-      action: 'You\'re back on track this week!',
-      impact: 'Spending 15% less than last week 🌟',
-      tag: 'Weekly Win',
-      timeAgo: '2d ago',
-      details: 'Your discipline is paying off. You saved ₹2,500 this week compared to last week.',
-      progressChange: 3,
-    },
-  ];
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .getStats()
+      .then((stats) => {
+        if (!cancelled) setTransactionCount(stats.meta?.transactionCount ?? 0);
+      })
+      .catch(() => {
+        if (!cancelled) setTransactionCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const insights: ImpactInsight[] = useMemo(() => {
+    const list: ImpactInsight[] = [];
+
+    if (transactionCount === null) {
+      list.push({
+        id: 'loading',
+        type: 'neutral',
+        action: 'Loading your activity…',
+        impact: 'Fetching transaction count from your account.',
+        tag: 'Status',
+        timeAgo: 'Now',
+      });
+      return list;
+    }
+
+    if (transactionCount === 0) {
+      list.push({
+        id: 'no-transactions',
+        type: 'neutral',
+        action: 'No transactions logged yet',
+        impact:
+          'Rupee-level spending alerts will show here after you add real income and expenses — we will not guess amounts.',
+        tag: 'Getting started',
+        timeAgo: 'Now',
+        details: 'Your onboarding profile still powers goals and scores elsewhere.',
+      });
+    } else {
+      list.push({
+        id: 'has-transactions',
+        type: 'positive',
+        action: `${transactionCount} transaction${transactionCount === 1 ? '' : 's'} in your account`,
+        impact: 'Keep logging so goal and spending impacts stay grounded in real data.',
+        tag: 'Activity',
+        timeAgo: 'Now',
+      });
+    }
+
+    if (profile.primaryConcern) {
+      list.push({
+        id: 'concern',
+        type: profile.primaryConcern.includes('tax')
+          ? 'caution'
+          : profile.primaryConcern.includes('debt')
+            ? 'negative'
+            : 'neutral',
+        action: `Priority concern: ${profile.primaryConcern}`,
+        impact: profile.primaryConcern.includes('tax')
+          ? `Potential annual tax savings (estimate): ₹${profile.estimatedTaxSavings.toLocaleString('en-IN')}`
+          : profile.primaryConcern.includes('spending')
+            ? `Profile savings rate: ${profile.savingsRate.toFixed(1)}%`
+            : `FIRE age estimate from profile: ${profile.fireAge}`,
+        tag: 'From your profile',
+        timeAgo: 'Now',
+        details: 'Based on onboarding — not on transaction history.',
+      });
+    }
+
+    return list;
+  }, [profile, transactionCount]);
 
   const getTypeStyles = (type: ImpactInsight['type']) => {
     switch (type) {

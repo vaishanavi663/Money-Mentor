@@ -1,6 +1,7 @@
 import { LayoutDashboard, MessageCircle, Receipt, Sparkles, Activity, Bot, ChevronLeft, ChevronRight, User, Settings, LogOut, Star } from 'lucide-react';
 import { useState } from 'react';
 import type { AuthUser } from '../lib/api';
+import { useUserProfile } from '../context/UserProfileContext';
 
 type Page = 'dashboard' | 'chat' | 'expenses' | 'simulator' | 'health';
 
@@ -21,6 +22,7 @@ export function Sidebar({
   currentUser,
   onLogout,
 }: SidebarProps) {
+  const { profile } = useUserProfile();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
   // All menu items in a flat structure
@@ -101,6 +103,13 @@ export function Sidebar({
 
       {/* Profile Section at Bottom */}
       <div className="mt-auto border-t border-gray-200 p-3 relative">
+        {!isCollapsed && (
+          <div className="mb-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+            <p className="text-xs text-emerald-700">Money Health</p>
+            <p className="text-lg font-bold text-emerald-800">{profile.moneyHealthScore}/100</p>
+            <p className="text-xs text-gray-600">FIRE age estimate: {profile.fireAge}</p>
+          </div>
+        )}
         <button
           onClick={() => setShowProfileDropdown(!showProfileDropdown)}
           className={`w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors ${
@@ -112,15 +121,15 @@ export function Sidebar({
           </div>
           {!isCollapsed && (
             <div className="flex-1 min-w-0 text-left">
-              <p className="font-medium text-sm truncate">{currentUser?.name || 'User'}</p>
-              <p className="text-xs text-gray-500 truncate">{currentUser?.email || 'user@example.com'}</p>
+              <p className="font-medium text-sm truncate">{profile.name || currentUser?.name || 'User'}</p>
+              <p className="text-xs text-gray-500 truncate">{profile.email || currentUser?.email || 'user@example.com'}</p>
             </div>
           )}
           
           {/* Tooltip for collapsed state */}
           {isCollapsed && (
             <div className="absolute left-full ml-3 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-lg">
-              {currentUser?.name || 'User'}
+              {profile.name || currentUser?.name || 'User'}
             </div>
           )}
         </button>

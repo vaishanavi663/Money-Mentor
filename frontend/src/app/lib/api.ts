@@ -1,4 +1,5 @@
 import type { FinanceStats, Transaction } from "../types/finance";
+import type { UserProfile } from "../types/userProfile";
 
 export interface AuthUser {
   id: string;
@@ -12,7 +13,16 @@ export interface AuthResponse {
   token: string;
 }
 
-const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+/** Ensures requests hit .../api/profile, not .../profile (which returns 404). */
+function normalizeApiBaseUrl(): string {
+  const raw = (import.meta.env.VITE_API_URL || "http://localhost:4000/api").trim().replace(/\/+$/, "");
+  if (/\/api$/i.test(raw)) {
+    return raw;
+  }
+  return `${raw}/api`;
+}
+
+const baseUrl = normalizeApiBaseUrl();
 const AUTH_TOKEN_KEY = "moneymentor-token";
 
 export function getStoredToken() {
@@ -71,6 +81,12 @@ export const api = {
   deleteTransaction: (id: string) =>
     request<void>(`/transactions/${id}`, { method: "DELETE" }),
   getStats: () => request<FinanceStats>("/stats"),
+  getUserProfile: () => request<{ profile: UserProfile }>("/profile"),
+  putUserProfile: (profile: UserProfile) =>
+    request<{ profile: UserProfile }>("/profile", {
+      method: "PUT",
+      body: JSON.stringify(profile),
+    }),
   register: (payload: { fullName: string; email: string; password: string }) =>
     request<AuthResponse>("/auth/register", {
       method: "POST",

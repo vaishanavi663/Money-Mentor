@@ -1,13 +1,20 @@
 import { Sparkles, ArrowRight, CheckCircle2, Info } from 'lucide-react';
 import { useState } from 'react';
+import { useUserProfile } from '../context/UserProfileContext';
 
 export function NextFinancialMove() {
+  const { profile } = useUserProfile();
   const [isHovered, setIsHovered] = useState(false);
-
-  const impactTags = [
-    { label: 'Save Tax', icon: '💰' },
-    { label: 'Grow Wealth', icon: '📈' },
-    { label: 'Stay on Track', icon: '🎯' },
+  const actions = [
+    !profile.currentInvestments.includes('Mutual Funds / SIPs')
+      ? `Start SIP of ₹${profile.recommendedSIP.toLocaleString('en-IN')}/month`
+      : `Increase SIP by 10% to ₹${Math.round(profile.recommendedSIP * 1.1).toLocaleString('en-IN')}`,
+    profile.goals.includes('Emergency Fund')
+      ? `Build emergency corpus with ₹${Math.round(profile.monthlyExpenses * 6).toLocaleString('en-IN')} target`
+      : 'Add Emergency Fund to your top goals',
+    profile.primaryConcern.includes('tax')
+      ? `Use 80C and NPS for tax savings up to ₹${profile.estimatedTaxSavings.toLocaleString('en-IN')}`
+      : `Keep spending below ₹${Math.round(profile.monthlyIncome * 0.7).toLocaleString('en-IN')} for better savings rate`,
   ];
 
   const handleDoThisNow = () => {
@@ -68,18 +75,16 @@ export function NextFinancialMove() {
 
           {/* Main action text */}
           <div className="mb-4">
-            <h3 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3">
-              Invest ₹3,000 in ELSS this month
-            </h3>
+              <h3 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3">{actions[0]}</h3>
             <p className="text-base sm:text-lg text-gray-600 flex items-center gap-2">
               <Info className="w-5 h-5 text-orange-500 flex-shrink-0" />
-              <span>You are missing ₹9,000 tax savings</span>
+                <span>Estimated tax optimization: ₹{profile.estimatedTaxSavings.toLocaleString('en-IN')}</span>
             </p>
           </div>
 
           {/* Impact tags */}
           <div className="flex flex-wrap gap-3 mb-6">
-            {impactTags.map((tag, index) => (
+            {actions.map((tag, index) => (
               <div
                 key={index}
                 className="flex items-center gap-2 bg-green-50 border border-green-200 px-4 py-2 rounded-full transition-all duration-300 hover:scale-110 hover:bg-green-100 hover:shadow-md"
@@ -88,8 +93,7 @@ export function NextFinancialMove() {
                 }}
               >
                 <CheckCircle2 className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium text-green-700">{tag.label}</span>
-                <span>{tag.icon}</span>
+                <span className="text-sm font-medium text-green-700">{tag}</span>
               </div>
             ))}
           </div>

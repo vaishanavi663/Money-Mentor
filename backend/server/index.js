@@ -3,6 +3,7 @@ import cors from "cors";
 import { pool } from "./db.js";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
+import { withDerivedFields, profileToApiResponse } from "./profileHelpers.js";
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -78,6 +79,27 @@ async function ensureSchema() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id
     ON user_sessions(user_id);
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_profiles (
+      user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      age INTEGER NOT NULL DEFAULT 28,
+      monthly_income NUMERIC(12, 2) NOT NULL DEFAULT 0,
+      monthly_expenses NUMERIC(12, 2) NOT NULL DEFAULT 0,
+      goals JSONB NOT NULL DEFAULT '[]'::jsonb,
+      current_investments JSONB NOT NULL DEFAULT '[]'::jsonb,
+      risk_profile TEXT NOT NULL DEFAULT 'moderate',
+      primary_concern TEXT NOT NULL DEFAULT '',
+      has_completed_onboarding BOOLEAN NOT NULL DEFAULT false,
+      onboarding_completed_at TIMESTAMPTZ,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id
+    ON user_profiles(user_id);
   `);
 }
 
@@ -177,7 +199,11 @@ async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization || "";
   const [scheme, token] = authHeader.split(" ");
   if (scheme !== "Bearer" || !token) {
-    return res.status(401).json({ error: "Authorization token required" });
+    return res.status(401).json({
+      error: "Authorization token required",
+      hint:
+        "Browsers do not send Bearer tokens when you open a URL in the tab. Log in via the app (token is stored automatically), or use curl/Postman/Thunder Client with: Authorization: Bearer <token from login/register response>.",
+    });
   }
 
   let decodedToken;
@@ -211,6 +237,72 @@ async function requireAuth(req, res, next) {
   };
 
   next();
+}
+
+async function getProfileHandler(req, res) {
+  const { rows } = await pool.query(
+    `
+      SELECT
+        u.full_name AS name,
+        u.email,
+        up.user_id AS has_profile_row,
+        up.age,
+        up.monthly_income,
+        up.monthly_expenses,
+        up.goals,
+        up.current_investments,
+        up.risk_profile,
+        up.primary_concern,
+        up.has_completed_onboarding,
+        up.onboarding_completed_at
+      FROM users u
+      LEFT JOIN user_profiles up ON up.user_id = u.id
+      WHERE u.id = $1
+      LIMIT 1
+    `,
+    [req.auth.userId],
+  );
+  const row = rows[0];
+  if (!row) {
+    console.warn(`[profile] no users row for user_id=${req.auth.userId}`);
+    return res.status(401).json({ error: "Account not found for this session", code: "USER_MISSING" });
+  }
+
+  let raw;
+  if (row.has_profile_row != null) {
+    raw = {
+      name: row.name,
+      email: row.email,
+      age: Number(row.age),
+      monthlyIncome: Number(row.monthly_income),
+      monthlyExpenses: Number(row.monthly_expenses),
+      goals: row.goals || [],
+      currentInvestments: row.current_investments || [],
+      riskProfile: row.risk_profile || "moderate",
+      primaryConcern: row.primary_concern || "",
+      hasCompletedOnboarding: Boolean(row.has_completed_onboarding),
+      onboardingCompletedAt: row.onboarding_completed_at
+        ? new Date(row.onboarding_completed_at).toISOString()
+        : "",
+    };
+  } else {
+    raw = {
+      name: row.name,
+      email: row.email,
+      age: 28,
+      monthlyIncome: 60000,
+      monthlyExpenses: 35000,
+      goals: [],
+      currentInvestments: [],
+      riskProfile: "moderate",
+      primaryConcern: "",
+      hasCompletedOnboarding: false,
+      onboardingCompletedAt: "",
+    };
+  }
+
+  const profile = withDerivedFields(raw);
+  return res.json({ profile: profileToApiResponse(profile) });
 }
 
 app.get("/api/health", async (_req, res) => {
@@ -332,6 +424,84 @@ app.post("/api/auth/logout", requireAuth, async (req, res) => {
   return res.json({ message: "Logged out successfully" });
 });
 
+app.get("/api/profile", requireAuth, getProfileHandler);
+app.get("/api/profile/", requireAuth, getProfileHandler);
+app.get("/profile", requireAuth, getProfileHandler);
+
+app.put("/api/profile", requireAuth, async (req, res) => {
+  const b = req.body || {};
+  const userId = req.auth.userId;
+
+  const { rows: userRows } = await pool.query("SELECT full_name AS name, email FROM users WHERE id = $1 LIMIT 1", [
+    userId,
+  ]);
+  if (!userRows[0]) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  const merged = {
+    name: String(b.name ?? userRows[0].name ?? ""),
+    email: String(b.email ?? userRows[0].email ?? ""),
+    age: b.age,
+    monthlyIncome: b.monthlyIncome,
+    monthlyExpenses: b.monthlyExpenses,
+    goals: b.goals,
+    currentInvestments: b.currentInvestments,
+    riskProfile: b.riskProfile,
+    primaryConcern: b.primaryConcern,
+    hasCompletedOnboarding: b.hasCompletedOnboarding,
+    onboardingCompletedAt: b.onboardingCompletedAt,
+  };
+
+  const profile = withDerivedFields(merged);
+
+  await pool.query(
+    `
+      INSERT INTO user_profiles (
+        user_id,
+        age,
+        monthly_income,
+        monthly_expenses,
+        goals,
+        current_investments,
+        risk_profile,
+        primary_concern,
+        has_completed_onboarding,
+        onboarding_completed_at,
+        updated_at
+      )
+      VALUES (
+        $1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8, $9, $10, NOW()
+      )
+      ON CONFLICT (user_id) DO UPDATE SET
+        age = EXCLUDED.age,
+        monthly_income = EXCLUDED.monthly_income,
+        monthly_expenses = EXCLUDED.monthly_expenses,
+        goals = EXCLUDED.goals,
+        current_investments = EXCLUDED.current_investments,
+        risk_profile = EXCLUDED.risk_profile,
+        primary_concern = EXCLUDED.primary_concern,
+        has_completed_onboarding = EXCLUDED.has_completed_onboarding,
+        onboarding_completed_at = EXCLUDED.onboarding_completed_at,
+        updated_at = NOW()
+    `,
+    [
+      userId,
+      profile.age,
+      profile.monthlyIncome,
+      profile.monthlyExpenses,
+      JSON.stringify(profile.goals),
+      JSON.stringify(profile.currentInvestments),
+      profile.riskProfile,
+      profile.primaryConcern,
+      profile.hasCompletedOnboarding,
+      profile.onboardingCompletedAt ? profile.onboardingCompletedAt : null,
+    ],
+  );
+
+  return res.json({ profile: profileToApiResponse(profile) });
+});
+
 app.get("/api/transactions", requireAuth, async (req, res) => {
   const { rows } = await pool.query(
     "SELECT id::text AS id, type, category, description, amount, date FROM transactions WHERE user_id = $1 ORDER BY date DESC, created_at DESC",
@@ -375,7 +545,7 @@ app.delete("/api/transactions/:id", requireAuth, async (req, res) => {
 });
 
 app.get("/api/stats", requireAuth, async (req, res) => {
-  const [summaryResult, byCategoryResult, monthlyResult] = await Promise.all([
+  const [summaryResult, byCategoryResult, monthlyResult, countResult] = await Promise.all([
     pool.query(`
       SELECT
         COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS income,
@@ -406,6 +576,7 @@ app.get("/api/stats", requireAuth, async (req, res) => {
       GROUP BY date_trunc('month', date)
       ORDER BY date_trunc('month', date)
     `, [req.auth.userId]),
+    pool.query(`SELECT COUNT(*)::int AS c FROM transactions WHERE user_id = $1`, [req.auth.userId]),
   ]);
 
   const income = Number(summaryResult.rows[0].income || 0);
@@ -430,6 +601,18 @@ app.get("/api/stats", requireAuth, async (req, res) => {
       income: Number(row.income),
       expenses: Number(row.expenses),
     })),
+    meta: {
+      transactionCount: Number(countResult.rows[0].c || 0),
+    },
+  });
+});
+
+app.use((req, res) => {
+  res.status(404).json({
+    error: "Not found",
+    path: req.originalUrl,
+    method: req.method,
+    hint: "API routes live under /api (e.g. GET /api/profile with Authorization: Bearer <token>).",
   });
 });
 

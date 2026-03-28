@@ -26,3 +26,17 @@ CREATE TABLE IF NOT EXISTS transactions (
   date DATE NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS user_profiles (
+  user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  age INTEGER NOT NULL DEFAULT 28,
+  monthly_income NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  monthly_expenses NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  goals JSONB NOT NULL DEFAULT '[]'::jsonb,
+  current_investments JSONB NOT NULL DEFAULT '[]'::jsonb,
+  risk_profile TEXT NOT NULL DEFAULT 'moderate',
+  primary_concern TEXT NOT NULL DEFAULT '',
+  has_completed_onboarding BOOLEAN NOT NULL DEFAULT false,
+  onboarding_completed_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

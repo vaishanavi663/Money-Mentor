@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { LandingPage } from './components/LandingPage';
 import { AuthPage } from './components/AuthPage';
 import { Sidebar } from './components/Sidebar';
@@ -9,8 +9,11 @@ import { FutureSimulator } from './components/FutureSimulator';
 import { MoneyHealthScore } from './components/MoneyHealthScore';
 import { VoiceAssistant } from './components/VoiceAssistant';
 import { BadDecisionDetector } from './components/BadDecisionDetector';
+import { OnboardingQuiz } from './components/OnboardingQuiz';
+import { ImpactFeed } from './components/ImpactFeed';
 import { MotionBackground } from './components/MotionBackground';
 import { api, clearStoredToken, getStoredToken, setStoredToken, type AuthResponse, type AuthUser } from './lib/api';
+import { useUserProfile } from './context/UserProfileContext';
 
 type Page = 'dashboard' | 'chat' | 'expenses' | 'simulator' | 'health';
 type AuthScreen = 'landing' | 'login' | 'register' | 'app';
@@ -25,21 +28,14 @@ interface BadDecision {
 }
 
 export default function App() {
+  const { profile, setIdentity, clearProfile, hydrateFromServer } = useUserProfile();
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [authScreen, setAuthScreen] = useState<AuthScreen>('landing');
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [activePage, setActivePage] = useState<Page>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [badDecisions, setBadDecisions] = useState<BadDecision[]>([
-    {
-      id: '1',
-      type: 'expense',
-      title: 'Shopping Alert! 🛍️',
-      message: 'Spending ₹20,000 on new phone right now?',
-      impact: 'This will delay your Dream Vacation goal by 2 months! 😔',
-      amount: 20000,
-    },
-  ]);
+  const [dismissedDecisionIds, setDismissedDecisionIds] = useState<string[]>([]);
 
   useEffect(() => {
     const verifySession = async () => {
@@ -54,7 +50,14 @@ export default function App() {
       try {
         const response = await api.getMe();
         setCurrentUser(response.user);
+        setIdentity({ name: response.user.name, email: response.user.email });
         localStorage.setItem('moneymentor-user', JSON.stringify(response.user));
+        try {
+          const { profile: serverProfile } = await api.getUserProfile();
+          hydrateFromServer(serverProfile);
+        } catch {
+          /* keep cached local profile */
+        }
         setAuthScreen('app');
       } catch {
         clearStoredToken();
@@ -66,8 +69,8 @@ export default function App() {
       }
     };
 
-    verifySession();
-  }, []);
+    void verifySession();
+  }, [hydrateFromServer, setIdentity]);
 
   const handleGetStarted = () => {
     setAuthScreen('register');
@@ -81,11 +84,22 @@ export default function App() {
     setAuthScreen('landing');
   };
 
-  const handleAuthSuccess = (payload: AuthResponse) => {
+  const handleAuthSuccess = async (payload: AuthResponse, source: 'login' | 'register') => {
     setStoredToken(payload.token);
     setCurrentUser(payload.user);
+    setIdentity({ name: payload.user.name, email: payload.user.email });
     localStorage.setItem('moneymentor-user', JSON.stringify(payload.user));
+    setDismissedDecisionIds([]);
+    let completedOnboarding = profile.hasCompletedOnboarding;
+    try {
+      const { profile: serverProfile } = await api.getUserProfile();
+      hydrateFromServer(serverProfile);
+      completedOnboarding = serverProfile.hasCompletedOnboarding;
+    } catch {
+      /* offline or first request — use current state */
+    }
     setAuthScreen('app');
+    setShowOnboarding(source === 'register' && !completedOnboarding);
   };
 
   const handleLogout = async () => {
@@ -96,19 +110,57 @@ export default function App() {
     } finally {
       clearStoredToken();
       localStorage.removeItem('moneymentor-user');
+      clearProfile();
       setCurrentUser(null);
+      setShowOnboarding(false);
       setAuthScreen('landing');
     }
   };
 
+  const badDecisions = useMemo<BadDecision[]>(() => {
+    const decisions: BadDecision[] = [];
+    if (!profile.hasCompletedOnboarding) {
+      return [];
+    }
+    if (profile.savingsRate < 10) {
+      decisions.push({
+        id: 'low-savings',
+        type: 'expense',
+        title: 'Savings rate is too low',
+        message: `You are saving only ${profile.savingsRate.toFixed(1)}% right now.`,
+        impact: 'Try to keep savings above 20% to stay on track for long-term goals.',
+        amount: Math.max(0, 20000 - profile.monthlySavings),
+      });
+    }
+    if (profile.monthlyIncome > 0 && profile.monthlyExpenses > profile.monthlyIncome * 0.8) {
+      decisions.push({
+        id: 'high-expense-ratio',
+        type: 'goal',
+        title: 'Expenses are eating your income',
+        message: `Expenses are ${(profile.monthlyExpenses / profile.monthlyIncome * 100).toFixed(0)}% of income.`,
+        impact: 'A 10% expense cut can significantly improve your FIRE timeline.',
+        amount: Math.round(profile.monthlyExpenses * 0.1),
+      });
+    }
+    if (!profile.currentInvestments.includes('Mutual Funds / SIPs')) {
+      decisions.push({
+        id: 'missing-sip',
+        type: 'investment',
+        title: 'No SIP detected',
+        message: 'Your profile suggests no active SIP yet.',
+        impact: 'Starting even a small SIP now compounds strongly over time.',
+        amount: profile.recommendedSIP,
+      });
+    }
+    return decisions.filter((item) => !dismissedDecisionIds.includes(item.id));
+  }, [dismissedDecisionIds, profile]);
+
   const handleDismissDecision = (id: string) => {
-    setBadDecisions(badDecisions.filter(d => d.id !== id));
+    setDismissedDecisionIds((prev) => [...prev, id]);
   };
 
   const handleSaveInstead = (id: string) => {
-    // In a real app, this would add to savings
-    setBadDecisions(badDecisions.filter(d => d.id !== id));
-    // Show a success message or trigger a savings action
+    setDismissedDecisionIds((prev) => [...prev, id]);
   };
 
   if (isCheckingSession) {
@@ -134,6 +186,10 @@ export default function App() {
         onAuthSuccess={handleAuthSuccess}
       />
     );
+  }
+
+  if (showOnboarding && !profile.hasCompletedOnboarding) {
+    return <OnboardingQuiz onCompleted={() => setShowOnboarding(false)} />;
   }
 
   return (
@@ -167,6 +223,7 @@ export default function App() {
         onDismiss={handleDismissDecision}
         onSaveInstead={handleSaveInstead}
       />
+      <ImpactFeed />
     </div>
   );
 }

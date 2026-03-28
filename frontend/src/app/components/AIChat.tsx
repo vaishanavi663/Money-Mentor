@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Mic, TrendingUp, PiggyBank, AlertTriangle } from 'lucide-react';
+import { useUserProfile } from '../context/UserProfileContext';
 
 interface Message {
   id: string;
@@ -10,12 +11,26 @@ interface Message {
 }
 
 export function AIChat() {
+  const { profile } = useUserProfile();
+  const systemPrompt = `User profile: ${JSON.stringify({
+    name: profile.name,
+    age: profile.age,
+    monthlyIncome: profile.monthlyIncome,
+    monthlyExpenses: profile.monthlyExpenses,
+    goals: profile.goals,
+    currentInvestments: profile.currentInvestments,
+    riskProfile: profile.riskProfile,
+    primaryConcern: profile.primaryConcern,
+    savingsRate: profile.savingsRate,
+    moneyHealthScore: profile.moneyHealthScore,
+    fireAge: profile.fireAge,
+  })}`;
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       type: 'ai',
-      content: 'Namaste! 👋 Main aapka MoneyMentor AI hoon. Aaj main aapki kaise help kar sakta hoon?',
-      suggestions: ['Show my expenses', 'Investment tips', 'Save tax'],
+      content: `Namaste ${profile.name || ''}! 👋 I can see your ${profile.savingsRate.toFixed(1)}% savings rate and ${profile.riskProfile} risk style. What would you like to optimize first?`,
+      suggestions: ['Show my savings plan', 'Investment tips', 'Save tax'],
       timestamp: new Date(),
     },
   ]);
@@ -49,15 +64,15 @@ export function AIChat() {
     setTimeout(() => {
       const aiResponses = [
         {
-          content: 'Dekhiye, is mahine aapka ₹2,940 ka expense hai. Food pe thoda zyada kharcha ho gaya hai - ₹310. Kya hum isko kam kar sakte hain? 🤔',
-          suggestions: ['See breakdown', 'Set budget', 'Save tips'],
+          content: `Your current monthly savings are ₹${Math.max(0, profile.monthlySavings).toLocaleString('en-IN')}. If we improve expenses by 10%, your FIRE age can improve from ${profile.fireAge}.`,
+          suggestions: ['See breakdown', 'Set budget', 'Improve FIRE plan'],
         },
         {
-          content: 'Great question! Investment ke liye main suggest karunga ki aap SIP start karein. Mutual funds mein monthly ₹5000 se start kar sakte hain. Long term mein achha return milta hai! 📈',
-          suggestions: ['How to start SIP', 'Best mutual funds', 'Calculate returns'],
+          content: `Based on your ${profile.riskProfile} profile and goals (${profile.goals.join(', ') || 'wealth creation'}), start a SIP around ₹${profile.recommendedSIP.toLocaleString('en-IN')} monthly.`,
+          suggestions: ['How to start SIP', 'Best fund mix', 'Calculate returns'],
         },
         {
-          content: 'Tax saving ke liye aap Section 80C ka benefit le sakte hain. ELSS, PPF, ya NPS mein invest karke ₹1.5 lakh tak ka deduction mil sakta hai. Shall we plan? 💰',
+          content: `You can potentially save around ₹${profile.estimatedTaxSavings.toLocaleString('en-IN')} in taxes this year with 80C + NPS aligned to your profile.`,
           suggestions: ['Show tax calculator', 'Investment options', 'Learn more'],
         },
       ];
@@ -94,10 +109,11 @@ export function AIChat() {
             <h2 className="font-semibold">MoneyMentor AI</h2>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-xs text-gray-500">Online</span>
+              <span className="text-xs text-gray-500">Online • Personalized</span>
             </div>
           </div>
         </div>
+        <p className="mt-2 text-xs text-gray-500">System prompt: {systemPrompt}</p>
       </div>
 
       {/* Messages Area */}

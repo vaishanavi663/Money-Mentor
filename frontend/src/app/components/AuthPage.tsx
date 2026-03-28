@@ -8,7 +8,7 @@ type AuthMode = "login" | "register";
 interface AuthPageProps {
   mode: AuthMode;
   onBackToLanding: () => void;
-  onAuthSuccess: (payload: AuthResponse) => void;
+  onAuthSuccess: (payload: AuthResponse, source: AuthMode) => void | Promise<void>;
 }
 
 interface RegisterFormState {
@@ -85,7 +85,7 @@ export function AuthPage({ mode, onBackToLanding, onAuthSuccess }: AuthPageProps
         email: registerData.email.trim(),
         password: registerData.password,
       });
-      onAuthSuccess(response);
+      await onAuthSuccess(response, "register");
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Registration failed");
     } finally {
@@ -108,7 +108,7 @@ export function AuthPage({ mode, onBackToLanding, onAuthSuccess }: AuthPageProps
         email: loginData.email.trim(),
         password: loginData.password,
       });
-      onAuthSuccess(response);
+      await onAuthSuccess(response, "login");
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Login failed");
     } finally {

@@ -17,4 +17,7 @@ export interface FinanceStats {
   };
   byCategory: Array<{ name: string; value: number }>;
   monthlyTrend: Array<{ month: string; income: number; expenses: number }>;
+  meta?: {
+    transactionCount: number;
+  };
 }

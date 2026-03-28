@@ -3,11 +3,12 @@ import type { Transaction } from './TransactionList';
 
 interface ExpenseChartProps {
   transactions: Transaction[];
+  seededMonthlyExpense?: number;
 }
 
 const COLORS = ['#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9'];
 
-export function ExpenseChart({ transactions }: ExpenseChartProps) {
+export function ExpenseChart({ transactions, seededMonthlyExpense = 0 }: ExpenseChartProps) {
   const expensesByCategory = transactions
     .filter(t => t.type === 'expense')
     .reduce((acc, transaction) => {
@@ -15,10 +16,18 @@ export function ExpenseChart({ transactions }: ExpenseChartProps) {
       return acc;
     }, {} as Record<string, number>);
 
-  const data = Object.entries(expensesByCategory).map(([name, value]) => ({
+  let data = Object.entries(expensesByCategory).map(([name, value]) => ({
     name,
     value: parseFloat(value.toFixed(2)),
   }));
+
+  if (data.length === 0 && seededMonthlyExpense > 0) {
+    data = [
+      { name: 'Essentials', value: parseFloat((seededMonthlyExpense * 0.55).toFixed(2)) },
+      { name: 'Lifestyle', value: parseFloat((seededMonthlyExpense * 0.25).toFixed(2)) },
+      { name: 'Bills', value: parseFloat((seededMonthlyExpense * 0.2).toFixed(2)) },
+    ];
+  }
 
   if (data.length === 0) {
     return (

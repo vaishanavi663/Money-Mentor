@@ -1,4 +1,5 @@
 import { TrendingUp, TrendingDown, AlertCircle, CheckCircle, Shield, Wallet, Heart, FileText } from 'lucide-react';
+import { useUserProfile } from '../context/UserProfileContext';
 
 interface HealthMetric {
   name: string;
@@ -9,43 +10,50 @@ interface HealthMetric {
 }
 
 export function MoneyHealthScore() {
-  const overallScore = 68;
+  const { profile } = useUserProfile();
+  const overallScore = profile.moneyHealthScore;
 
   const metrics: HealthMetric[] = [
     {
       name: 'Emergency Fund',
-      score: 45,
-      status: 'poor',
+      score: profile.goals.includes('Emergency Fund') || profile.currentInvestments.includes('FD / Savings Account') ? 80 : 45,
+      status: profile.goals.includes('Emergency Fund') || profile.currentInvestments.includes('FD / Savings Account') ? 'good' : 'poor',
       icon: Shield,
-      suggestion: 'Apko kam se kam 6 months ka emergency fund chahiye. Currently only 2 months covered.',
+      suggestion: profile.goals.includes('Emergency Fund')
+        ? 'Great pick. Continue building emergency corpus to at least 6 months expenses.'
+        : 'Add Emergency Fund as a top goal for stronger financial resilience.',
     },
     {
       name: 'Investments',
-      score: 75,
-      status: 'good',
+      score: Math.min(95, profile.currentInvestments.length * 15),
+      status: profile.currentInvestments.length >= 3 ? 'good' : profile.currentInvestments.length >= 1 ? 'warning' : 'poor',
       icon: TrendingUp,
-      suggestion: 'Great! Aap achhe se invest kar rahe hain. Keep it up! 💪',
+      suggestion: `You currently invest in ${profile.currentInvestments.length} instrument(s). Keep diversifying gradually.`,
     },
     {
       name: 'Debt Management',
-      score: 55,
-      status: 'warning',
+      score: profile.primaryConcern.includes('debt') ? 45 : 70,
+      status: profile.primaryConcern.includes('debt') ? 'poor' : 'good',
       icon: AlertCircle,
-      suggestion: 'Credit card debt thoda high hai. Interest se bachne ke liye jaldi pay karein.',
+      suggestion: profile.primaryConcern.includes('debt')
+        ? 'Prioritize clearing high-interest debt before increasing risk exposure.'
+        : 'No major debt warning detected from your onboarding profile.',
     },
     {
       name: 'Insurance Coverage',
-      score: 80,
-      status: 'good',
+      score: profile.currentInvestments.includes('Life Insurance') ? 85 : 50,
+      status: profile.currentInvestments.includes('Life Insurance') ? 'good' : 'warning',
       icon: Heart,
-      suggestion: 'Excellent coverage! Life aur health insurance dono active hain.',
+      suggestion: profile.currentInvestments.includes('Life Insurance')
+        ? 'Insurance coverage looks healthy from your profile.'
+        : 'Consider adding life/health cover to reduce financial risk.',
     },
     {
       name: 'Tax Efficiency',
-      score: 60,
+      score: profile.estimatedTaxSavings > 20000 ? 80 : 60,
       status: 'warning',
       icon: FileText,
-      suggestion: 'You can save more tax! 80C ke saath saath NPS bhi consider karein.',
+      suggestion: `You can optimize around ₹${profile.estimatedTaxSavings.toLocaleString('en-IN')} annually with better tax planning.`,
     },
   ];
 
