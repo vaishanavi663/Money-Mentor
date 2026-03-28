@@ -28,11 +28,11 @@ export function IncomeExpenseTrend({ transactions }: IncomeExpenseTrendProps) {
     });
 
     const income = monthTransactions
-      .filter(t => t.type === 'income')
+      .filter(t => t.type === 'credit')
       .reduce((sum, t) => sum + t.amount, 0);
 
     const expenses = monthTransactions
-      .filter(t => t.type === 'expense')
+      .filter(t => t.type === 'debit')
       .reduce((sum, t) => sum + t.amount, 0);
 
     return {

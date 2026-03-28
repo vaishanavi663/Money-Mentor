@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { api, getStoredToken } from "../lib/api";
 import type { UserProfile } from "../types/userProfile";
 
@@ -142,38 +150,51 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(profile));
   }, [profile]);
 
+  const updateProfile = useCallback((updates: Partial<UserProfile>) => {
+    setProfile((previous) => withDerivedFields({ ...previous, ...updates }));
+  }, []);
+
+  const completeOnboarding = useCallback(
+    (payload: Parameters<UserProfileContextValue["completeOnboarding"]>[0]) => {
+      setProfile((previous) => {
+        const next = withDerivedFields({
+          ...previous,
+          ...payload,
+          hasCompletedOnboarding: true,
+          onboardingCompletedAt: new Date().toISOString(),
+        });
+        if (getStoredToken()) {
+          void api.putUserProfile(next).catch(() => {});
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
+  const setIdentity = useCallback((identity: Pick<UserProfile, "name" | "email">) => {
+    setProfile((previous) => withDerivedFields({ ...previous, ...identity }));
+  }, []);
+
+  const hydrateFromServer = useCallback((serverProfile: UserProfile) => {
+    setProfile(withDerivedFields({ ...DEFAULT_PROFILE, ...serverProfile }));
+  }, []);
+
+  const clearProfile = useCallback(() => {
+    localStorage.removeItem(USER_PROFILE_STORAGE_KEY);
+    setProfile(withDerivedFields(DEFAULT_PROFILE));
+  }, []);
+
   const value = useMemo<UserProfileContextValue>(
     () => ({
       profile,
-      updateProfile: (updates) => {
-        setProfile((previous) => withDerivedFields({ ...previous, ...updates }));
-      },
-      completeOnboarding: (payload) => {
-        setProfile((previous) => {
-          const next = withDerivedFields({
-            ...previous,
-            ...payload,
-            hasCompletedOnboarding: true,
-            onboardingCompletedAt: new Date().toISOString(),
-          });
-          if (getStoredToken()) {
-            void api.putUserProfile(next).catch(() => {});
-          }
-          return next;
-        });
-      },
-      setIdentity: (identity) => {
-        setProfile((previous) => withDerivedFields({ ...previous, ...identity }));
-      },
-      hydrateFromServer: (serverProfile) => {
-        setProfile(withDerivedFields({ ...DEFAULT_PROFILE, ...serverProfile }));
-      },
-      clearProfile: () => {
-        localStorage.removeItem(USER_PROFILE_STORAGE_KEY);
-        setProfile(withDerivedFields(DEFAULT_PROFILE));
-      },
+      updateProfile,
+      completeOnboarding,
+      setIdentity,
+      hydrateFromServer,
+      clearProfile,
     }),
-    [profile],
+    [profile, updateProfile, completeOnboarding, setIdentity, hydrateFromServer, clearProfile],
   );
 
   return <UserProfileContext.Provider value={value}>{children}</UserProfileContext.Provider>;

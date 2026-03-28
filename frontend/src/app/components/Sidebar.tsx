@@ -1,9 +1,9 @@
-import { LayoutDashboard, MessageCircle, Receipt, Sparkles, Activity, Bot, ChevronLeft, ChevronRight, User, Settings, LogOut, Star } from 'lucide-react';
+import { LayoutDashboard, MessageCircle, Receipt, Sparkles, Activity, Bot, ChevronLeft, ChevronRight, User, Settings, LogOut, Star, Percent, Landmark } from 'lucide-react';
 import { useState } from 'react';
 import type { AuthUser } from '../lib/api';
 import { useUserProfile } from '../context/UserProfileContext';
 
-type Page = 'dashboard' | 'chat' | 'expenses' | 'simulator' | 'health';
+type Page = 'dashboard' | 'chat' | 'expenses' | 'simulator' | 'health' | 'tax-tips' | 'schemes';
 
 interface SidebarProps {
   activePage: Page;
@@ -30,6 +30,8 @@ export function Sidebar({
     { id: 'dashboard' as Page, icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'chat' as Page, icon: MessageCircle, label: 'AI Chat' },
     { id: 'expenses' as Page, icon: Receipt, label: 'Expenses' },
+    { id: 'tax-tips' as Page, icon: Percent, label: 'Tax tips' },
+    { id: 'schemes' as Page, icon: Landmark, label: 'Schemes & opportunities' },
     { id: 'simulator' as Page, icon: Sparkles, label: 'Simulator' },
     { id: 'health' as Page, icon: Activity, label: 'Health Score' },
   ];

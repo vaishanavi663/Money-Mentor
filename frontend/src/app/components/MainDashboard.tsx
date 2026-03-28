@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, AlertCircle, ArrowUp } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, CreditCard, AlertCircle, ArrowUp } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { NextFinancialMove } from './NextFinancialMove';
 import { FinancialStatusStrip } from './FinancialStatusStrip';
-import { api } from '../lib/api';
-import type { FinanceStats } from '../types/finance';
 import { useUserProfile } from '../context/UserProfileContext';
+import { useTransactionSummary, useTransactionsList } from '@/hooks/useTransactions';
+import { SMSImport } from '@/components/SMSImport';
+import { TaxTips } from '@/components/TaxTips';
+import { Skeleton } from './ui/skeleton';
 
 function getTimeBasedGreeting(date: Date = new Date()): string {
   const hour = date.getHours();
@@ -15,10 +17,15 @@ function getTimeBasedGreeting(date: Date = new Date()): string {
   return 'Good night';
 }
 
+function monthLabel(month: number, year: number): string {
+  return new Date(year, month - 1, 1).toLocaleString('en-IN', { month: 'short' });
+}
+
 export function MainDashboard() {
   const { profile } = useUserProfile();
-  const [statsData, setStatsData] = useState<FinanceStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: summary, isLoading: summaryLoading, isError: summaryError } = useTransactionSummary();
+  const { data: recentPage, isLoading: recentLoading } = useTransactionsList({ limit: 10, offset: 0 });
+
   const [timeGreeting, setTimeGreeting] = useState(() => getTimeBasedGreeting());
 
   useEffect(() => {
@@ -34,82 +41,72 @@ export function MainDashboard() {
     };
   }, []);
 
-  useEffect(() => {
-    const loadStats = async () => {
-      try {
-        const response = await api.getStats();
-        setStatsData(response);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const income = summary?.currentMonth.credit ?? 0;
+  const expenses = summary?.currentMonth.debit ?? 0;
+  const net = income - expenses;
+  const monthlyChangePct = income > 0 ? (net / income) * 100 : 0;
+  const countThisMonth = summary?.currentMonth.count ?? 0;
 
-    void loadStats();
-  }, []);
+  const hasTransactions = useMemo(() => {
+    if (!summary) return false;
+    if (countThisMonth > 0) return true;
+    return summary.last6Months.some((m) => m.debit > 0 || m.credit > 0);
+  }, [summary, countThisMonth]);
 
-  const stats = useMemo(() => [
-    {
-      title: 'Total Balance',
-      value: `₹${(statsData?.summary.totalBalance || 0).toLocaleString('en-IN')}`,
-      change: `${(statsData?.summary.monthlyChange || 0).toFixed(1)}%`,
-      trend: (statsData?.summary.totalBalance || 0) >= 0 ? 'up' : 'down',
-      icon: Wallet,
-      color: 'from-green-600 to-green-500',
-    },
-    {
-      title: 'This Month Income',
-      value: `₹${(statsData?.summary.income || 0).toLocaleString('en-IN')}`,
-      change: '+Live',
-      trend: 'up',
-      icon: TrendingUp,
-      color: 'from-blue-600 to-blue-500',
-    },
-    {
-      title: 'This Month Expenses',
-      value: `₹${(statsData?.summary.expenses || 0).toLocaleString('en-IN')}`,
-      change: '-Live',
-      trend: 'down',
-      icon: CreditCard,
-      color: 'from-orange-600 to-red-500',
-    },
-    {
-      title: 'Monthly Savings',
-      value: `₹${profile.monthlySavings.toLocaleString('en-IN')}`,
-      change: `${profile.savingsRate.toFixed(1)}%`,
-      trend: profile.monthlySavings >= 0 ? 'up' : 'down',
-      icon: PiggyBank,
-      color: 'from-purple-600 to-pink-500',
-    },
-    {
-      title: 'Recommended SIP',
-      value: `₹${profile.recommendedSIP.toLocaleString('en-IN')}`,
-      change: profile.riskProfile,
-      trend: 'up',
-      icon: TrendingUp,
-      color: 'from-emerald-600 to-teal-500',
-    },
-    {
-      title: 'Estimated Tax Savings',
-      value: `₹${profile.estimatedTaxSavings.toLocaleString('en-IN')}`,
-      change: 'Annual',
-      trend: 'up',
-      icon: Wallet,
-      color: 'from-indigo-600 to-blue-500',
-    },
-  ], [profile.estimatedTaxSavings, profile.monthlySavings, profile.recommendedSIP, profile.riskProfile, profile.savingsRate, statsData]);
+  const stats = useMemo(
+    () => [
+      {
+        title: 'Net this month',
+        value: `₹${net.toLocaleString('en-IN')}`,
+        change: `${monthlyChangePct.toFixed(1)}%`,
+        trend: net >= 0 ? 'up' : 'down',
+        icon: Wallet,
+        color: 'from-green-600 to-green-500',
+      },
+      {
+        title: 'Total income (credit)',
+        value: `₹${income.toLocaleString('en-IN')}`,
+        change: 'This month',
+        trend: 'up',
+        icon: TrendingUp,
+        color: 'from-blue-600 to-blue-500',
+      },
+      {
+        title: 'Total expenses (debit)',
+        value: `₹${expenses.toLocaleString('en-IN')}`,
+        change: 'This month',
+        trend: 'down',
+        icon: CreditCard,
+        color: 'from-orange-600 to-red-500',
+      },
+      {
+        title: 'Transactions (month)',
+        value: String(countThisMonth),
+        change: 'Logged',
+        trend: 'up',
+        icon: TrendingUp,
+        color: 'from-purple-600 to-pink-500',
+      },
+    ],
+    [countThisMonth, expenses, income, monthlyChangePct, net],
+  );
 
   const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#14b8a6'];
-  const expenseData = (statsData?.byCategory || []).map((item, index) => ({
-    ...item,
+  const expenseData = (summary?.topCategories || []).map((item, index) => ({
+    name: item.category,
+    value: item.amount,
     color: colors[index % colors.length],
   }));
 
-  const monthlyTrend = statsData?.monthlyTrend || [];
-  const transactionCount = statsData?.meta?.transactionCount ?? 0;
-  const hasTransactions = transactionCount > 0;
-  const monthIncome = statsData?.summary.income ?? 0;
-  const monthExpenses = statsData?.summary.expenses ?? 0;
-  const hasExpenseThisMonth = monthExpenses > 0;
+  const monthlyTrend = (summary?.last6Months || []).map((m) => ({
+    month: monthLabel(m.month, m.year),
+    income: m.credit,
+    expenses: m.debit,
+  }));
+
+  const hasExpenseThisMonth = expenses > 0;
+  const monthIncome = income;
+  const monthExpenses = expenses;
   const topCategory = expenseData[0];
 
   const statusStrip = useMemo(() => {
@@ -129,19 +126,17 @@ export function MainDashboard() {
     if (!hasTransactions) {
       return {
         status: 'good' as const,
-        mainText: 'Start with your first transaction',
-        subText: profile.hasCompletedOnboarding
-          ? `Your profile estimates ₹${profile.monthlyExpenses.toLocaleString('en-IN')}/mo spending — we will replace this with real data once you log expenses.`
-          : 'Complete onboarding, then add income and expenses to unlock spending insights.',
-        actionText: 'Open Expenses and add a transaction',
+        mainText: 'No transactions yet',
+        subText: 'Import your first UPI SMS above or add entries from Expenses — all totals below come from your database.',
+        actionText: 'Paste an SMS to get started',
       };
     }
     if (!hasExpenseThisMonth) {
       return {
         status: 'good' as const,
-        mainText: 'No expenses logged this month yet',
-        subText: 'You have transactions on file, but nothing tagged as spending for the current month.',
-        actionText: 'Log this month’s expenses to see category breakdown',
+        mainText: 'No debit transactions this month yet',
+        subText: 'You may have credits on file — add or import spending to see category breakdown.',
+        actionText: 'Log or import expenses',
       };
     }
 
@@ -149,7 +144,7 @@ export function MainDashboard() {
       return {
         status: 'risk' as const,
         mainText: 'Spending exceeded recorded income this month',
-        subText: `Expenses ₹${monthExpenses.toLocaleString('en-IN')} are above income ₹${monthIncome.toLocaleString('en-IN')} in your logs — adjust or add missing income.`,
+        subText: `Debits ₹${monthExpenses.toLocaleString('en-IN')} are above credits ₹${monthIncome.toLocaleString('en-IN')} in your logs — adjust or add missing income.`,
         actionText: actionForTopCategory,
       };
     }
@@ -194,7 +189,7 @@ export function MainDashboard() {
       mainText: 'You are tracking spending this month',
       subText:
         monthIncome > 0
-          ? `Logged income ₹${monthIncome.toLocaleString('en-IN')} and expenses ₹${monthExpenses.toLocaleString('en-IN')} — keep categories consistent.`
+          ? `Logged credits ₹${monthIncome.toLocaleString('en-IN')} and debits ₹${monthExpenses.toLocaleString('en-IN')} — keep categories consistent.`
           : 'Keep logging transactions so trends stay accurate.',
       actionText: actionForTopCategory,
     };
@@ -204,28 +199,39 @@ export function MainDashboard() {
     monthExpenses,
     monthIncome,
     monthlyTrend,
-    profile.hasCompletedOnboarding,
-    profile.monthlyExpenses,
     topCategory,
   ]);
+
+  const recentRows = recentPage?.transactions ?? [];
+  const loading = summaryLoading || recentLoading;
 
   return (
     <div className="h-full overflow-y-auto bg-white/45 backdrop-blur-[2px] p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">
             {timeGreeting}, {profile.name || 'there'} 👋
           </h1>
           <p className="text-gray-600">
             {hasTransactions
-              ? 'Here’s your financial overview from the transactions you’ve logged.'
-              : 'Add transactions to see live spending and trends — until then, some numbers reflect your profile or empty month data.'}
+              ? 'Here’s your financial overview from transactions stored for your account.'
+              : 'No transactions yet — import your first UPI SMS above!'}
           </p>
         </div>
-        {loading && <div className="text-gray-500">Loading dashboard data...</div>}
 
-        {/* Financial Status Strip */}
+        {summaryError && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Could not load live summary. Check that the API is running and you are logged in.
+          </div>
+        )}
+
+        <SMSImport />
+
+        <div>
+          <h2 className="mb-3 text-lg font-semibold text-gray-900">Tax tips</h2>
+          <TaxTips variant="dashboard" />
+        </div>
+
         <FinancialStatusStrip
           status={statusStrip.status}
           mainText={statusStrip.mainText}
@@ -233,92 +239,58 @@ export function MainDashboard() {
           actionText={statusStrip.actionText}
         />
 
-        {/* Hero Component - Your Next Financial Move */}
         <NextFinancialMove />
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map((stat, index) => {
-            const Icon = stat.icon;
-            
-            // Add contextual insight for each card
-            let contextText = '';
-            if (stat.title === 'Total Balance') {
-              contextText = hasTransactions
-                ? 'Based on this month’s logged income and expenses'
-                : 'Add transactions to see a real month-to-date balance';
-            } else if (stat.title === 'This Month Income') {
-              contextText = hasExpenseThisMonth || monthIncome > 0
-                ? 'Income logged for the current month'
-                : 'No income logged this month yet';
-            } else if (stat.title === 'This Month Expenses') {
-              contextText = hasExpenseThisMonth
-                ? 'Expenses logged for the current month'
-                : 'No expenses logged this month yet';
-            } else if (stat.title === 'Monthly Savings') {
-              contextText = `Profile-based savings rate ${profile.savingsRate.toFixed(1)}% (from onboarding)`;
-            } else if (stat.title === 'Recommended SIP') {
-              contextText = 'Risk-adjusted SIP recommendation';
-            } else if (stat.title === 'Estimated Tax Savings') {
-              contextText = 'Potential annual tax optimization';
-            }
-            
-            return (
-              <div
-                key={index}
-                className="bg-white rounded-2xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center`}>
-                    <Icon className="w-6 h-6 text-white" />
-                  </div>
-                  <div className={`flex items-center gap-1 text-sm font-medium ${
-                    stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {stat.trend === 'up' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                    {stat.change}
-                  </div>
+          {loading
+            ? Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="rounded-2xl border border-gray-200 bg-white p-6">
+                  <Skeleton className="mb-4 h-12 w-12 rounded-xl" />
+                  <Skeleton className="mb-2 h-4 w-24" />
+                  <Skeleton className="h-8 w-36" />
                 </div>
-                <h3 className="text-gray-600 text-sm mb-1">{stat.title}</h3>
-                <p className="text-3xl font-bold mb-2">{stat.value}</p>
-                
-                {/* Contextual insight */}
-                <p className="text-xs text-gray-600 mt-2 flex items-center gap-1">
-                  {stat.title === 'Monthly Savings' && <AlertCircle className="w-3 h-3 text-orange-500" />}
-                  {contextText}
-                </p>
-                {stat.title === 'Monthly Savings' && (
-                  <p className="text-xs text-orange-600 mt-1">⚠️ Ideal is 30%</p>
-                )}
-              </div>
-            );
-          })}
+              ))
+            : stats.map((stat, index) => {
+                const Icon = stat.icon;
+                return (
+                  <div
+                    key={index}
+                    className="bg-white rounded-2xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div
+                        className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center`}
+                      >
+                        <Icon className="w-6 h-6 text-white" />
+                      </div>
+                      <div
+                        className={`flex items-center gap-1 text-sm font-medium ${
+                          stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
+                        }`}
+                      >
+                        {stat.trend === 'up' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                        {stat.change}
+                      </div>
+                    </div>
+                    <h3 className="text-gray-600 text-sm mb-1">{stat.title}</h3>
+                    <p className="text-3xl font-bold mb-2">{stat.value}</p>
+                    <p className="text-xs text-gray-500">Live from your transaction ledger</p>
+                  </div>
+                );
+              })}
         </div>
 
-        {/* Charts Row with Insights */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Spending Insight Card + Expense Breakdown */}
           <div className="bg-white rounded-2xl p-6 border border-gray-200">
-            {/* Spending Insight Card */}
             <div className="mb-6 p-5 bg-gradient-to-br from-orange-50 to-red-50 rounded-xl border border-orange-200">
               <h3 className="text-sm font-semibold text-gray-600 mb-2">Where your money is going</h3>
               {!hasExpenseThisMonth ? (
                 <>
                   <p className="text-2xl font-bold text-gray-900 mb-2">
-                    {hasTransactions ? 'No expense data for this month' : 'No spending data yet'}
+                    {hasTransactions ? 'No debit data for this month' : 'No spending data yet'}
                   </p>
                   <p className="text-sm text-gray-700 mb-3">
-                    {profile.hasCompletedOnboarding ? (
-                      <>
-                        From onboarding you estimated about{' '}
-                        <span className="font-semibold text-orange-600">
-                          ₹{profile.monthlyExpenses.toLocaleString('en-IN')}/month
-                        </span>{' '}
-                        in expenses. Add real transactions to see category insights.
-                      </>
-                    ) : (
-                      'Complete onboarding and log expenses to see which categories use most of your budget.'
-                    )}
+                    Category shares update from debit transactions recorded this month.
                   </p>
                 </>
               ) : (
@@ -334,17 +306,16 @@ export function MainDashboard() {
                   </p>
                   <div className="flex items-center gap-2 text-sm">
                     <AlertCircle className="w-4 h-4 text-orange-600" />
-                    <p className="text-orange-700 font-medium">
-                      Review this category in Expenses to trim discretionary spend
-                    </p>
+                    <p className="text-orange-700 font-medium">Review this category in Expenses to trim discretionary spend</p>
                   </div>
                 </>
               )}
             </div>
-            
-            {/* Small Pie Chart */}
+
             <h2 className="text-lg font-semibold mb-3 text-gray-500">Breakdown</h2>
-            {expenseData.length > 0 ? (
+            {loading ? (
+              <Skeleton className="h-[240px] w-full rounded-xl" />
+            ) : expenseData.length > 0 ? (
               <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
                   <Pie
@@ -366,22 +337,19 @@ export function MainDashboard() {
               </ResponsiveContainer>
             ) : (
               <div className="flex h-[240px] items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 text-center text-sm text-gray-500">
-                Category chart appears after you log expenses for this month.
+                No debit categories for this month yet.
               </div>
             )}
           </div>
 
-          {/* Trend Insight + Monthly Trend */}
           <div className="bg-white rounded-2xl p-6 border border-gray-200">
-            {/* Trend Insight Card */}
             <div className="mb-6 p-5 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border border-blue-200">
               <h3 className="text-sm font-semibold text-gray-600 mb-2">Your spending trend</h3>
               {!hasTransactions ? (
                 <>
                   <p className="text-xl font-bold text-gray-900 mb-2">Trends need transaction history</p>
                   <p className="text-sm text-gray-700">
-                    Once you log a few months of income and expenses, we will show whether spending is rising or
-                    falling over time.
+                    Import SMS or add transactions — charts recalc automatically from your data.
                   </p>
                 </>
               ) : (
@@ -391,21 +359,16 @@ export function MainDashboard() {
                     <p className="text-2xl font-bold text-gray-900">6-month snapshot from your data</p>
                   </div>
                   <p className="text-sm text-gray-700 mb-2">
-                    Totals below are based only on transactions you have recorded — keep logging for sharper trends.
+                    Credits and debits are summed per calendar month from your ledger.
                   </p>
-                  <div className="flex items-center gap-2 text-sm">
-                    <AlertCircle className="w-4 h-4 text-blue-600" />
-                    <p className="text-blue-800 font-medium">
-                      Tip: log weekly so this chart reflects real life, not gaps.
-                    </p>
-                  </div>
                 </>
               )}
             </div>
-            
-            {/* Small Bar Chart */}
+
             <h2 className="text-lg font-semibold mb-3 text-gray-500">6-Month View</h2>
-            {monthlyTrend.length > 0 && monthlyTrend.some((m) => m.income > 0 || m.expenses > 0) ? (
+            {loading ? (
+              <Skeleton className="h-[200px] w-full rounded-xl" />
+            ) : monthlyTrend.length > 0 && monthlyTrend.some((m) => m.income > 0 || m.expenses > 0) ? (
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={monthlyTrend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -418,87 +381,46 @@ export function MainDashboard() {
               </ResponsiveContainer>
             ) : (
               <div className="flex h-[200px] items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 text-center text-sm text-gray-500">
-                No multi-month data yet. Add transactions dated across months to see this chart fill in.
+                No multi-month data yet. Add or import transactions across months to see this chart.
               </div>
             )}
           </div>
         </div>
 
-        {/* What to Fix Section */}
-        <div className="bg-white rounded-2xl p-6 border border-gray-200">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <span>What you can improve</span>
-            <span className="text-sm font-normal text-gray-500">(Simple actions)</span>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {!hasTransactions ? (
-              <>
-                <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                  <div className="w-5 h-5 rounded-full border-2 border-blue-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-gray-900">Log your first transactions</p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Insights here use real category data — add expenses to unlock them.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-                  <div className="w-5 h-5 rounded-full border-2 border-emerald-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-gray-900">Revisit your goals</p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      {profile.goals.length > 0
-                        ? `You chose: ${profile.goals.slice(0, 2).join(', ')}${profile.goals.length > 2 ? '…' : ''}`
-                        : 'Complete onboarding to set goals, then track progress with real spends.'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
-                  <div className="w-5 h-5 rounded-full border-2 border-green-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-gray-900">Plan a starter SIP</p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Suggested from your profile: ₹{profile.recommendedSIP.toLocaleString('en-IN')}/month.
-                    </p>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-start gap-3 p-4 bg-orange-50 border border-orange-200 rounded-xl hover:shadow-md transition-all">
-                  <div className="w-5 h-5 rounded-full border-2 border-orange-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-gray-900">
-                      {topCategory ? `Watch ${topCategory.name}` : 'Review top categories'}
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      {topCategory
-                        ? `Largest spend this month: ₹${topCategory.value.toLocaleString('en-IN')}`
-                        : 'Log categorized expenses to see your top area'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-4 bg-orange-50 border border-orange-200 rounded-xl hover:shadow-md transition-all">
-                  <div className="w-5 h-5 rounded-full border-2 border-orange-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-gray-900">Keep income &amp; expense dates current</p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Accurate dates improve monthly summaries and trend charts.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-xl hover:shadow-md transition-all">
-                  <div className="w-5 h-5 rounded-full border-2 border-green-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-gray-900">Increase SIP toward your goals</p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Profile suggests ₹{profile.recommendedSIP.toLocaleString('en-IN')}/mo — adjust as cashflow allows.
-                    </p>
-                  </div>
-                </div>
-              </>
-            )}
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="p-4 border-b border-gray-200">
+            <h2 className="font-semibold text-lg">Latest transactions</h2>
+            <p className="text-sm text-gray-500">Most recent 10 entries from your account</p>
           </div>
+          {loading ? (
+            <div className="space-y-3 p-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-14 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : recentRows.length === 0 ? (
+            <div className="p-8 text-center text-sm text-gray-500">
+              No transactions yet — import your first UPI SMS above!
+            </div>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {recentRows.map((t) => (
+                <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+                  <div>
+                    <p className="font-medium text-gray-900">{t.merchant || t.description || 'Transaction'}</p>
+                    <p className="text-gray-500">
+                      {t.category} · {new Date(t.transactionDate).toLocaleDateString('en-IN')}
+                    </p>
+                  </div>
+                  <div
+                    className={`text-lg font-semibold ${t.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}
+                  >
+                    {t.type === 'credit' ? '+' : '-'}₹{t.amount.toLocaleString('en-IN')}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>

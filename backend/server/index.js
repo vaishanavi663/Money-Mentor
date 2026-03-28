@@ -4,6 +4,10 @@ import { pool } from "./db.js";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { withDerivedFields, profileToApiResponse } from "./profileHelpers.js";
+import { applyMigrations } from "./migrationsRunner.js";
+import { createTransactionsRouter } from "./routes/transactions.js";
+import { createTaxTipsRouter } from "./routes/taxTips.js";
+import { createMfRouter } from "./routes/mf.js";
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -56,24 +60,23 @@ async function ensureSchema() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS transactions (
       id BIGSERIAL PRIMARY KEY,
-      user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
-      type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
-      category TEXT NOT NULL,
-      description TEXT NOT NULL,
-      amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
-      date DATE NOT NULL,
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      amount DECIMAL(12, 2) NOT NULL CHECK (amount >= 0),
+      type VARCHAR(10) NOT NULL CHECK (type IN ('debit', 'credit')),
+      merchant VARCHAR(255),
+      category VARCHAR(100) NOT NULL DEFAULT 'Others',
+      description TEXT NOT NULL DEFAULT '',
+      upi_ref VARCHAR(100),
+      source VARCHAR(50) NOT NULL DEFAULT 'manual',
+      raw_sms TEXT,
+      transaction_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
 
   await pool.query(`
-    ALTER TABLE transactions
-    ADD COLUMN IF NOT EXISTS user_id BIGINT REFERENCES users(id) ON DELETE CASCADE;
-  `);
-
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS idx_transactions_user_id_date
-    ON transactions(user_id, date DESC, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_transactions_user_txdate
+    ON transactions(user_id, transaction_date DESC, created_at DESC);
   `);
 
   await pool.query(`
@@ -238,6 +241,8 @@ async function requireAuth(req, res, next) {
 
   next();
 }
+
+app.use("/api/mf", requireAuth, createMfRouter());
 
 async function getProfileHandler(req, res) {
   const { rows } = await pool.query(
@@ -502,79 +507,40 @@ app.put("/api/profile", requireAuth, async (req, res) => {
   return res.json({ profile: profileToApiResponse(profile) });
 });
 
-app.get("/api/transactions", requireAuth, async (req, res) => {
-  const { rows } = await pool.query(
-    "SELECT id::text AS id, type, category, description, amount, date FROM transactions WHERE user_id = $1 ORDER BY date DESC, created_at DESC",
-    [req.auth.userId],
-  );
-  res.json(rows);
-});
-
-app.post("/api/transactions", requireAuth, async (req, res) => {
-  const { type, category, description, amount, date } = req.body;
-  if (!type || !category || !description || !amount || !date) {
-    return res.status(400).json({ error: "Missing required transaction fields" });
-  }
-
-  if (type !== "income" && type !== "expense") {
-    return res.status(400).json({ error: "Invalid transaction type" });
-  }
-
-  const { rows } = await pool.query(
-    "INSERT INTO transactions (user_id, type, category, description, amount, date) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id::text AS id, type, category, description, amount, date",
-    [req.auth.userId, type, category, description, amount, date],
-  );
-  return res.status(201).json(rows[0]);
-});
-
-app.delete("/api/transactions/:id", requireAuth, async (req, res) => {
-  const id = Number(req.params.id);
-  if (!Number.isFinite(id)) {
-    return res.status(400).json({ error: "Invalid transaction id" });
-  }
-
-  const result = await pool.query("DELETE FROM transactions WHERE id = $1 AND user_id = $2", [
-    id,
-    req.auth.userId,
-  ]);
-  if (result.rowCount === 0) {
-    return res.status(404).json({ error: "Transaction not found" });
-  }
-
-  return res.status(204).send();
-});
+app.use("/api/transactions", requireAuth, createTransactionsRouter());
+app.use("/api/tax-tips", requireAuth, createTaxTipsRouter());
 
 app.get("/api/stats", requireAuth, async (req, res) => {
   const [summaryResult, byCategoryResult, monthlyResult, countResult] = await Promise.all([
     pool.query(`
       SELECT
-        COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS income,
-        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS expenses
+        COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END), 0) AS income,
+        COALESCE(SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END), 0) AS expenses
       FROM transactions
       WHERE user_id = $1
-        AND date >= date_trunc('month', CURRENT_DATE)
-        AND date < date_trunc('month', CURRENT_DATE) + interval '1 month'
+        AND transaction_date >= date_trunc('month', CURRENT_TIMESTAMP)
+        AND transaction_date < date_trunc('month', CURRENT_TIMESTAMP) + interval '1 month'
     `, [req.auth.userId]),
     pool.query(`
       SELECT category, COALESCE(SUM(amount), 0) AS value
       FROM transactions
       WHERE user_id = $1
-        AND type = 'expense'
-        AND date >= date_trunc('month', CURRENT_DATE)
-        AND date < date_trunc('month', CURRENT_DATE) + interval '1 month'
+        AND type = 'debit'
+        AND transaction_date >= date_trunc('month', CURRENT_TIMESTAMP)
+        AND transaction_date < date_trunc('month', CURRENT_TIMESTAMP) + interval '1 month'
       GROUP BY category
       ORDER BY value DESC
     `, [req.auth.userId]),
     pool.query(`
       SELECT
-        TO_CHAR(date_trunc('month', date), 'Mon') AS month,
-        COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS income,
-        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS expenses
+        TO_CHAR(date_trunc('month', transaction_date), 'Mon') AS month,
+        COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END), 0) AS income,
+        COALESCE(SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END), 0) AS expenses
       FROM transactions
       WHERE user_id = $1
-        AND date >= date_trunc('month', CURRENT_DATE) - interval '5 months'
-      GROUP BY date_trunc('month', date)
-      ORDER BY date_trunc('month', date)
+        AND transaction_date >= date_trunc('month', CURRENT_TIMESTAMP) - interval '5 months'
+      GROUP BY date_trunc('month', transaction_date)
+      ORDER BY date_trunc('month', transaction_date)
     `, [req.auth.userId]),
     pool.query(`SELECT COUNT(*)::int AS c FROM transactions WHERE user_id = $1`, [req.auth.userId]),
   ]);
@@ -619,6 +585,7 @@ app.use((req, res) => {
 async function start() {
   try {
     await ensureSchema();
+    await applyMigrations(pool);
     // eslint-disable-next-line no-console
     console.log("Database schema ready.");
   } catch (error) {

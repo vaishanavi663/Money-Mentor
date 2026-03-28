@@ -4,7 +4,8 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "node server/index.js"
+    "dev": "node server/index.js",
+    "migrate": "node scripts/run-migrations.js"
   },
   "dependencies": {
     "cors": "^2.8.6",

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { taxTipsKey, transactionSummaryKey } from '@/hooks/useTransactions';
 import { Plus, Filter, Calendar, TrendingDown, Receipt, Trash2 } from 'lucide-react';
 import { AddTransactionForm } from './AddTransactionForm';
 import { BudgetTracker, type Budget } from './BudgetTracker';
@@ -8,6 +10,7 @@ import type { Transaction } from '../types/finance';
 import { useUserProfile } from '../context/UserProfileContext';
 
 export function ExpensesDashboard() {
+  const queryClient = useQueryClient();
   const { profile } = useUserProfile();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -17,27 +20,37 @@ export function ExpensesDashboard() {
 
   const categoryIcons: { [key: string]: string } = {
     'Food & Dining': '🍽️',
-    'Transportation': '🚗',
-    'Shopping': '🛍️',
+    Transport: '🚗',
+    Transportation: '🚗',
+    Shopping: '🛍️',
+    Utilities: '💡',
     'Bills & Utilities': '💡',
-    'Entertainment': '🎬',
-    'Healthcare': '🏥',
-    'Salary': '💰',
-    'Freelance': '💼',
+    Entertainment: '🎬',
+    Health: '🏥',
+    Healthcare: '🏥',
+    'UPI Transfer': '📲',
+    Insurance: '🛡️',
+    Investments: '📈',
+    Salary: '💰',
+    Freelance: '💼',
+    Other: '📝',
+    Others: '📝',
   };
 
   const categories = useMemo(
     () => [
       'Food & Dining',
-      'Transportation',
+      'Transport',
       'Shopping',
-      'Bills & Utilities',
       'Entertainment',
-      'Healthcare',
+      'UPI Transfer',
+      'Health',
+      'Utilities',
+      'Insurance',
+      'Investments',
       'Salary',
       'Freelance',
-      'Investment',
-      'Other',
+      'Others',
     ],
     [],
   );
@@ -77,15 +90,25 @@ export function ExpensesDashboard() {
     });
   }, [profile.monthlyExpenses]);
 
+  const invalidateLedger = () => {
+    void queryClient.invalidateQueries({ queryKey: transactionSummaryKey });
+    void queryClient.invalidateQueries({ queryKey: taxTipsKey });
+    void queryClient.invalidateQueries({
+      predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'transactions',
+    });
+  };
+
   const handleAddTransaction = async (transaction: Omit<Transaction, 'id'>) => {
     await api.addTransaction(transaction);
     await loadTransactions();
+    invalidateLedger();
     setShowAddForm(false);
   };
 
   const handleDeleteTransaction = async (id: string) => {
     await api.deleteTransaction(id);
     await loadTransactions();
+    invalidateLedger();
   };
   const handleAddBudget = (budget: { category: string; limit: number }) => {
     setBudgets((previous) => [...previous, { ...budget, id: crypto.randomUUID() }]);
@@ -94,7 +117,7 @@ export function ExpensesDashboard() {
     setBudgets((previous) => previous.filter((budget) => budget.id !== id));
   };
 
-  const expenseTransactions = transactions.filter((t) => t.type === 'expense');
+  const expenseTransactions = transactions.filter((t) => t.type === 'debit');
   const totalSpent = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);
   const avgDailySpend = expenseTransactions.length > 0 ? totalSpent / expenseTransactions.length : 0;
 
@@ -232,7 +255,7 @@ export function ExpensesDashboard() {
               <div key={transaction.id} className="p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
-                    transaction.type === 'income' ? 'bg-green-100' : 'bg-red-100'
+                    transaction.type === 'credit' ? 'bg-green-100' : 'bg-red-100'
                   }`}>
                     {categoryIcons[transaction.category] || '📝'}
                   </div>
@@ -252,9 +275,9 @@ export function ExpensesDashboard() {
 
                   <div className="flex items-center gap-4">
                     <div className={`text-xl font-bold ${
-                      transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                      transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'
                     }`}>
-                      {transaction.type === 'income' ? '+' : '-'}₹{transaction.amount.toLocaleString('en-IN')}
+                      {transaction.type === 'credit' ? '+' : '-'}₹{transaction.amount.toLocaleString('en-IN')}
                     </div>
                     <button
                       onClick={() => void handleDeleteTransaction(transaction.id)}
@@ -288,7 +311,7 @@ export function ExpensesDashboard() {
             onDeleteBudget={handleDeleteBudget}
             categories={categories}
           />
-          <ExpenseChart transactions={transactions} seededMonthlyExpense={profile.monthlyExpenses} />
+          <ExpenseChart transactions={transactions} />
         </div>
       </div>
     </div>

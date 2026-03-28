@@ -3,7 +3,7 @@ import { Trash2, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 
 export interface Transaction {
   id: string;
-  type: 'income' | 'expense';
+  type: 'debit' | 'credit';
   amount: number;
   category: string;
   description: string;
@@ -36,9 +36,9 @@ export function TransactionList({ transactions, onDelete }: TransactionListProps
               <div key={transaction.id} className="p-4 flex items-center justify-between hover:bg-accent/50 transition-colors">
                 <div className="flex items-center gap-3 flex-1">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    transaction.type === 'income' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                    transaction.type === 'credit' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
                   }`}>
-                    {transaction.type === 'income' ? (
+                    {transaction.type === 'credit' ? (
                       <ArrowDownLeft className="w-5 h-5" />
                     ) : (
                       <ArrowUpRight className="w-5 h-5" />
@@ -54,8 +54,8 @@ export function TransactionList({ transactions, onDelete }: TransactionListProps
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <p className={`font-medium ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                    {transaction.type === 'income' ? '+' : '-'}${transaction.amount.toFixed(2)}
+                  <p className={`font-medium ${transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                    {transaction.type === 'credit' ? '+' : '-'}₹{transaction.amount.toLocaleString('en-IN')}
                   </p>
                   <button
                     onClick={() => onDelete(transaction.id)}

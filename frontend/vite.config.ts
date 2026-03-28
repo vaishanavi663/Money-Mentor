@@ -5,6 +5,15 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   root: __dirname,
+  server: {
+    proxy: {
+      // Forward /api/* to the Express backend so VITE_API_URL=/api works in dev (see .env.example).
+      "/api": {
+        target: "http://localhost:4000",
+        changeOrigin: true,
+      },
+    },
+  },
   plugins: [
     // The React and Tailwind plugins are both required for Make, even if
     // Tailwind is not being actively used – do not remove them

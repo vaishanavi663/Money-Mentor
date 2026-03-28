@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react';
 
 interface AddTransactionFormProps {
   onAdd: (transaction: {
-    type: 'income' | 'expense';
+    type: 'debit' | 'credit';
     amount: number;
     category: string;
     description: string;
@@ -13,7 +13,7 @@ interface AddTransactionFormProps {
 }
 
 export function AddTransactionForm({ onAdd, categories }: AddTransactionFormProps) {
-  const [type, setType] = useState<'income' | 'expense'>('expense');
+  const [type, setType] = useState<'debit' | 'credit'>('debit');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
@@ -44,25 +44,25 @@ export function AddTransactionForm({ onAdd, categories }: AddTransactionFormProp
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => setType('expense')}
+            onClick={() => setType('debit')}
             className={`flex-1 py-2 px-4 rounded-md transition-colors ${
-              type === 'expense'
+              type === 'debit'
                 ? 'bg-red-600 text-white'
                 : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
             }`}
           >
-            Expense
+            Expense (debit)
           </button>
           <button
             type="button"
-            onClick={() => setType('income')}
+            onClick={() => setType('credit')}
             className={`flex-1 py-2 px-4 rounded-md transition-colors ${
-              type === 'income'
+              type === 'credit'
                 ? 'bg-green-600 text-white'
                 : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
             }`}
           >
-            Income
+            Income (credit)
           </button>
         </div>
 

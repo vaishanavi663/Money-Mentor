@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
-import type { Transaction } from './TransactionList';
+import type { Transaction } from '../types/finance';
 
 export interface Budget {
   id: string;
@@ -43,7 +43,7 @@ export function BudgetTracker({ budgets, transactions, onAddBudget, onDeleteBudg
       .filter(t => {
         const transactionDate = new Date(t.date);
         return (
-          t.type === 'expense' &&
+          t.type === 'debit' &&
           t.category === budgetCategory &&
           transactionDate.getMonth() === currentMonth &&
           transactionDate.getFullYear() === currentYear

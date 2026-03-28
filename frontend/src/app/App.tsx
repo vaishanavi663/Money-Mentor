@@ -3,6 +3,7 @@ import { LandingPage } from './components/LandingPage';
 import { AuthPage } from './components/AuthPage';
 import { Sidebar } from './components/Sidebar';
 import { MainDashboard } from './components/MainDashboard';
+import { SchemesOpportunitiesPage } from './components/SchemesOpportunitiesPage';
 import { AIChat } from './components/AIChat';
 import { ExpensesDashboard } from './components/ExpensesDashboard';
 import { FutureSimulator } from './components/FutureSimulator';
@@ -12,10 +13,12 @@ import { BadDecisionDetector } from './components/BadDecisionDetector';
 import { OnboardingQuiz } from './components/OnboardingQuiz';
 import { ImpactFeed } from './components/ImpactFeed';
 import { MotionBackground } from './components/MotionBackground';
+import { Toaster } from './components/ui/sonner';
+import { TaxTips } from '@/components/TaxTips';
 import { api, clearStoredToken, getStoredToken, setStoredToken, type AuthResponse, type AuthUser } from './lib/api';
 import { useUserProfile } from './context/UserProfileContext';
 
-type Page = 'dashboard' | 'chat' | 'expenses' | 'simulator' | 'health';
+type Page = 'dashboard' | 'chat' | 'expenses' | 'simulator' | 'health' | 'tax-tips' | 'schemes';
 type AuthScreen = 'landing' | 'login' | 'register' | 'app';
 
 interface BadDecision {
@@ -70,7 +73,10 @@ export default function App() {
     };
 
     void verifySession();
-  }, [hydrateFromServer, setIdentity]);
+    // Session restore runs once on mount. Do not depend on profile context
+    // callbacks — they would retrigger this after setIdentity and flood the API.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleGetStarted = () => {
     setAuthScreen('register');
@@ -214,6 +220,12 @@ export default function App() {
         {activePage === 'expenses' && <ExpensesDashboard />}
         {activePage === 'simulator' && <FutureSimulator onNavigateToChat={() => setActivePage('chat')} />}
         {activePage === 'health' && <MoneyHealthScore />}
+        {activePage === 'tax-tips' && (
+          <div className="relative z-10 h-full overflow-y-auto bg-white/45 backdrop-blur-[2px]">
+            <TaxTips variant="page" />
+          </div>
+        )}
+        {activePage === 'schemes' && <SchemesOpportunitiesPage />}
       </div>
 
       {/* Floating Components */}
@@ -224,6 +236,7 @@ export default function App() {
         onSaveInstead={handleSaveInstead}
       />
       <ImpactFeed />
+      <Toaster richColors position="top-center" />
     </div>
   );
 }
