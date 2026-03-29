@@ -1,6 +1,6 @@
 <div align="center">
 
-# 💰 Money Mentor — Finance Management
+# 💰 Money Mentor - Finance Management
 
 ### *Your AI-powered money companion for India*
 
