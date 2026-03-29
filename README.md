@@ -29,7 +29,7 @@
 
 <br/>
 
-> **"Mere paison ka kya hoga?"** — Stop asking. Start knowing.
+> **"Mere paison ka kya hoga?"** - Stop asking. Start knowing.
 
 <br/>
 
@@ -70,7 +70,7 @@ All in one app. All built for Bharat.
 📩 Bank SMS arrives → Parsed & categorized in seconds
 ```
 
-> **Live Demo:** `[your-deployment-url-here]`
+> **Live Demo:** `https://money-mentor-frontend.vercel.app/`
 
 ---
 
@@ -82,19 +82,19 @@ All in one app. All built for Bharat.
 │  ┌──────────────────┐     ┌──────────────────────────┐  │
 │  │  React 18 + Vite │     │  Capacitor Android Shell │  │
 │  │  TypeScript SPA  │     │  (Native SMS Plugin)     │  │
-│  └────────┬─────────┘     └────────────┬─────────────┘  │
+│  └────────┬─────────┘     └─────────────┬────────────┘  │
 └───────────│─────────────────────────────│───────────────┘
             │ HTTPS /api                  │ HTTPS /api
 ┌───────────▼─────────────────────────────▼───────────────┐
 │                     BACKEND (Express 5)                 │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐  │
-│  │Auth + JWT│  │Transact- │  │ Tax Tips │  │AI Chat │  │
-│  │Sessions  │  │ions CRUD │  │ Engine   │  │Handler │  │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └───┬────┘  │
-│       └─────────────┴──────────────┴────────────┘       │
-│                         │                               │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐   │
+│  │Auth + JWT│  │Transact- │  │ Tax Tips │  │AI Chat │   │ 
+│  │Sessions  │  │ions CRUD │  │ Engine   │  │Handler │   │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └───┬────┘   │
+│       └─────────────┴─────────────┴────────────┘        │
+│                          │                              │
 │               ┌──────────▼──────────┐                   │
-│               │    PostgreSQL DB     │                   │
+│               │    PostgreSQL DB    │                   │
 │               └─────────────────────┘                   │
 │                                                         │
 │        ┌──────────────┐    ┌──────────────┐             │
@@ -109,7 +109,7 @@ All in one app. All built for Bharat.
 ## 💎 Feature Deep-Dive
 
 ### 🧠 AI Money Advisor
-Every conversation with the AI isn't generic — it's **loaded with your actual financial context**: your current month's income, expenses, savings rate, risk profile, investment goals, and top spending categories. You're not talking to a chatbot. You're talking to a personal CFO who knows your numbers.
+Every conversation with the AI isn't generic - it's **loaded with your actual financial context**: your current month's income, expenses, savings rate, risk profile, investment goals, and top spending categories. You're not talking to a chatbot. You're talking to a personal CFO who knows your numbers.
 
 ```
 User: "Should I invest in mutual funds this month?"
@@ -137,12 +137,12 @@ Built around the **Indian Financial Year (April–March)**:
 - **Section 80C**: Tracks your investment spending toward the ₹1.5L limit
 - **Section 80D**: Health insurance premiums detected via keyword matching
 - **HRA**: Rent keywords flagged for home rent allowance claims
-- Dismissed tips are remembered — no repeats
+- Dismissed tips are remembered - no repeats
 
 ---
 
 ### 🏛️ Government Scheme Discovery
-Surfaces real schemes you likely qualify for — PM Jan Dhan, Atal Pension Yojana, Sukanya Samriddhi, PMSBY — based on your income and profile. No more missing out.
+Surfaces real schemes you likely qualify for - PM Jan Dhan, Atal Pension Yojana, Sukanya Samriddhi, PMSBY — based on your income and profile. No more missing out.
 
 ---
 
