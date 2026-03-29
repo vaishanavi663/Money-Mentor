@@ -18,6 +18,7 @@ import { TaxTips } from '@/components/TaxTips';
 import { api, clearStoredToken, getStoredToken, setStoredToken, type AuthResponse, type AuthUser } from './lib/api';
 import { useUserProfile } from './context/UserProfileContext';
 import { usePlan } from '../hooks/usePlan';
+import { useSaveTransaction } from '../hooks/useTransactions';
 import type { UserPlan } from './lib/api';
 
 type Page = 'dashboard' | 'chat' | 'expenses' | 'simulator' | 'health' | 'tax-tips' | 'schemes';
@@ -55,7 +56,8 @@ function FutureSimulatorUpgradePrompt({ onUpgrade }: { onUpgrade: () => void }) 
 
 export default function App() {
   const { profile, setIdentity, clearProfile, hydrateFromServer } = useUserProfile();
-  const { isPro, showUpgradeModal } = usePlan();
+  const { showUpgradeModal } = usePlan();
+  const saveTransaction = useSaveTransaction();
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [authScreen, setAuthScreen] = useState<AuthScreen>('landing');
   const [registerIntentPlan, setRegisterIntentPlan] = useState<UserPlan>('free');
@@ -149,6 +151,81 @@ export default function App() {
     setAuthScreen('app');
     setShowOnboarding(source === 'register' && !completedOnboarding);
   };
+  const getFirstScrollableDescendant = (root: HTMLElement | null): HTMLElement | null => {
+    if (!root) return null;
+
+    if (root.scrollHeight > root.clientHeight) {
+      const style = window.getComputedStyle(root);
+      if (/(auto|scroll|overlay)/.test(style.overflowY || '')) {
+        return root;
+      }
+    }
+
+    for (const child of Array.from(root.children) as HTMLElement[]) {
+      const candidate = getFirstScrollableDescendant(child);
+      if (candidate) return candidate;
+    }
+
+    return null;
+  };
+
+  const getBestScrollContainer = (): HTMLElement | null => {
+    // Prefer the actively visible app content first.
+    const activeContent = document.querySelector<HTMLElement>('div.relative.z-10.flex.min-h-0.flex-1.overflow-hidden');
+    const mainScrollable = getFirstScrollableDescendant(activeContent);
+    if (mainScrollable) return mainScrollable;
+
+    const preferredSelectors = ['.h-full.overflow-y-auto', '.overflow-y-auto', '.overflow-auto', '.overflow-scroll', '.scrollable', 'main', '.app-container'];
+
+    for (const selector of preferredSelectors) {
+      const candidate = document.querySelector<HTMLElement>(selector);
+      if (!candidate) continue;
+      if (candidate.scrollHeight > candidate.clientHeight) {
+        return candidate;
+      }
+    }
+
+    // fallback to any scrollable element with overflow and biggest delta.
+    let best: HTMLElement | null = null;
+    let maxDelta = 0;
+
+    document.querySelectorAll<HTMLElement>('*').forEach((el) => {
+      const style = window.getComputedStyle(el);
+      if (!/(auto|scroll|overlay)/.test(style.overflowY || '')) return;
+      if (el.scrollHeight <= el.clientHeight) return;
+
+      const delta = el.scrollHeight - el.clientHeight;
+      if (delta > maxDelta) {
+        maxDelta = delta;
+        best = el;
+      }
+    });
+
+    if (best) return best;
+
+    const docEl = (document.scrollingElement as HTMLElement | null) || document.documentElement || document.body;
+    return docEl instanceof HTMLElement ? docEl : null;
+  };
+
+  const handleVoiceScroll = (direction: string) => {
+    const container = getBestScrollContainer();
+    const scrollAmount = direction === 'down' ? window.innerHeight * 0.7 : -window.innerHeight * 0.7;
+
+    if (direction === 'top') {
+      if (container) container.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (direction === 'bottom') {
+      if (container) container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      return;
+    }
+
+    if (container) container.scrollBy({ top: scrollAmount, behavior: 'smooth' });
+    window.scrollBy({ top: scrollAmount, behavior: 'smooth' });
+  };
 
   const handleLogout = async () => {
     try {
@@ -211,6 +288,45 @@ export default function App() {
     setDismissedDecisionIds((prev) => [...prev, id]);
   };
 
+  // Voice Assistant handlers
+  const handleVoiceNavigate = (page: string) => {
+    setActivePage(page as Page);
+  };
+
+  const handleVoiceAddTransaction = async (amount: number, category: string, mode: 'credit' | 'debit' = 'debit') => {
+    try {
+      await saveTransaction.mutateAsync({
+        amount,
+        type: mode,
+        category,
+        description: `Voice command: ${category}`,
+        date: new Date().toISOString().split('T')[0],
+      });
+    } catch (error) {
+      console.error('Failed to add transaction via voice:', error);
+    }
+  };
+
+  const handleVoiceType = (text: string) => {
+    // Dispatch custom event for voice typing
+    window.dispatchEvent(new CustomEvent('voiceType', { detail: text }));
+  };
+
+  const handleVoiceUpgrade = () => {
+    showUpgradeModal(
+      'Voice command upgrade',
+      'Upgrade to Pro to unlock premium assistant features for your finances.'
+    );
+  };
+
+  const handleVoiceSubNavigate = (detail: { section: string; subSection?: string }) => {
+    if (detail.section === 'schemes') {
+      setActivePage('schemes');
+      // Optional: pass deep selection to Schemes page via context state if built.
+      console.log('Sub-navigate to schemes', detail.subSection);
+    }
+  };
+
   if (isCheckingSession) {
     return (
       <div className="relative min-h-screen">
@@ -267,19 +383,9 @@ export default function App() {
         {activePage === 'dashboard' && <MainDashboard />}
         {activePage === 'chat' && <AIChat />}
         {activePage === 'expenses' && <ExpensesDashboard />}
-        {activePage === 'simulator' &&
-          (isPro ? (
-            <FutureSimulator onNavigateToChat={() => setActivePage('chat')} />
-          ) : (
-            <FutureSimulatorUpgradePrompt
-              onUpgrade={() =>
-                showUpgradeModal(
-                  'Future Simulator',
-                  'Run wealth projections, goal timelines, and leak analysis — included in Pro alongside Voice Assistant and unlimited AI chat.',
-                )
-              }
-            />
-          ))}
+       {activePage === 'simulator' && (
+  <FutureSimulator onNavigateToChat={() => setActivePage('chat')} />
+      )}
         {activePage === 'health' && <MoneyHealthScore />}
         {activePage === 'tax-tips' && (
           <div className="relative z-10 h-full overflow-y-auto bg-white/45 backdrop-blur-[2px]">
@@ -290,7 +396,15 @@ export default function App() {
       </div>
 
       {/* Floating Components */}
-      <VoiceAssistant />
+      <VoiceAssistant
+        onNavigate={handleVoiceNavigate}
+        onAddTransaction={handleVoiceAddTransaction}
+        onType={handleVoiceType}
+        onScroll={handleVoiceScroll}
+        onSubNavigate={handleVoiceSubNavigate}
+        onLogout={handleLogout}
+        onUpgrade={handleVoiceUpgrade}
+      />
       <BadDecisionDetector
         decisions={badDecisions}
         onDismiss={handleDismissDecision}

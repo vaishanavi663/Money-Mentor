@@ -2,6 +2,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { api, type AuthResponse, type UserPlan } from "../lib/api";
 import { MotionBackground } from "./MotionBackground";
+import { VoiceAssistant } from "./VoiceAssistant";
 
 type AuthMode = "login" | "register";
 
@@ -69,6 +70,36 @@ export function AuthPage({ mode, signupPlan = "free", onBackToLanding, onAuthSuc
     if (!isValidEmail(loginData.email.trim())) return "Please enter a valid email";
     if (!loginData.password) return "Password is required";
     return "";
+  };
+
+  const handleVoiceType = (text: string) => {
+    // Handle voice form filling
+    // Words like "name:", "email:", "password:", "confirm:" will be stripped and values filled
+    const lower = text.toLowerCase().trim();
+    
+    if (lower.startsWith('name ') || lower.startsWith('name:')) {
+      const value = text.substring(text.indexOf(' ') + 1).trim().replace(':', '');
+      setRegisterData(prev => ({ ...prev, fullName: value }));
+    } else if (lower.startsWith('email ') || lower.startsWith('email:')) {
+      const value = text.substring(text.indexOf(' ') + 1).trim().replace(':', '');
+      if (activeMode === 'register') {
+        setRegisterData(prev => ({ ...prev, email: value }));
+      } else {
+        setLoginData(prev => ({ ...prev, email: value }));
+      }
+    } else if (lower.startsWith('password ') || lower.startsWith('password:')) {
+      const value = text.substring(text.indexOf(' ') + 1).trim().replace(':', '');
+      if (activeMode === 'register') {
+        setRegisterData(prev => ({ ...prev, password: value }));
+      } else {
+        setLoginData(prev => ({ ...prev, password: value }));
+      }
+    } else if (lower.startsWith('confirm ') || lower.startsWith('confirm password') || lower.startsWith('confirmpassword')) {
+      if (activeMode === 'register') {
+        const value = text.substring(text.lastIndexOf(' ') + 1).trim();
+        setRegisterData(prev => ({ ...prev, confirmPassword: value }));
+      }
+    }
   };
 
   const handleRegisterSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -257,6 +288,7 @@ export function AuthPage({ mode, signupPlan = "free", onBackToLanding, onAuthSuc
           )}
         </div>
       </div>
+      <VoiceAssistant onType={handleVoiceType} />
     </div>
   );
 }

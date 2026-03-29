@@ -78,6 +78,24 @@ export function AIChat() {
     scrollToBottom();
   }, [messages]);
 
+  // Listen for voice typing events
+  useEffect(() => {
+    const handleVoiceType = (event: CustomEvent<string>) => {
+      const text = event.detail;
+      setInput(text);
+      // Auto-send after a short delay to simulate typing
+      setTimeout(() => {
+        handleSend(text);
+      }, 500);
+    };
+
+    window.addEventListener('voiceType', handleVoiceType as EventListener);
+
+    return () => {
+      window.removeEventListener('voiceType', handleVoiceType as EventListener);
+    };
+  }, []);
+
   const handleSend = async (overrideText?: string) => {
     const text = (overrideText ?? input).trim();
     if (!text) return;

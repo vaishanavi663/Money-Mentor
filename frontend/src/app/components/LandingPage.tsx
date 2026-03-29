@@ -1,5 +1,6 @@
 import { ArrowRight, Bot, TrendingUp, Target, Shield, Sparkles, CheckCircle2 } from 'lucide-react';
 import { MotionBackground } from './MotionBackground';
+import { VoiceAssistant } from './VoiceAssistant';
 
 interface LandingPageProps {
   onGetStartedFree: () => void;
@@ -8,6 +9,21 @@ interface LandingPageProps {
 }
 
 export function LandingPage({ onGetStartedFree, onGetStartedPro, onLogin }: LandingPageProps) {
+  const handleVoiceNavigation = (page: string) => {
+    const command = page.toLowerCase().trim();
+    
+    if (command.includes('login')) {
+      onLogin();
+    } else if (command.includes('get started') || command.includes('started')) {
+      // Check if user specified pro/premium
+      if (command.includes('pro') || command.includes('premium')) {
+        onGetStartedPro();
+      } else {
+        // Default to free
+        onGetStartedFree();
+      }
+    }
+  };
   return (
     <div className="relative min-h-screen">
       <MotionBackground />
@@ -216,6 +232,7 @@ export function LandingPage({ onGetStartedFree, onGetStartedPro, onLogin }: Land
           </div>
         </div>
       </div>
+      <VoiceAssistant onNavigate={handleVoiceNavigation} />
       </div>
     </div>
   );

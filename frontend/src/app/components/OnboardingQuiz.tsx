@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Slider } from "./ui/slider";
 import { Progress } from "./ui/progress";
 import { useUserProfile } from "../context/UserProfileContext";
+import { VoiceAssistant } from "./VoiceAssistant";
 
 interface OnboardingQuizProps {
   onCompleted: () => void;
@@ -104,6 +105,235 @@ export function OnboardingQuiz({ onCompleted }: OnboardingQuizProps) {
       rate,
     };
   }, [selectedExpenses, selectedIncome]);
+
+  const handleVoiceNavigate = (page: string) => {
+    const command = page.toLowerCase().trim();
+    
+    if (command.includes('next') || command.includes('continue')) {
+      if (canProceed) {
+        goNext();
+      }
+    } else if (command.includes('back') || command.includes('previous')) {
+      setStep(prev => Math.max(1, prev - 1));
+    }
+  };
+
+  const handleVoiceType = (text: string) => {
+    const lower = text.toLowerCase().trim();
+    console.log(`🎙️ Voice input on step ${step}: "${text}"`);
+
+    const isIncomeIntent = (cmd: string) =>
+      cmd.includes('under') || cmd.includes('35') || cmd.includes('lakh') || cmd.includes('income') || /\b\d{5,6}\b/.test(cmd);
+
+    const isExpenseIntent = (cmd: string) =>
+      cmd.includes('expense') || cmd.includes('spend') || cmd.includes('bill') || /\b\d{4,6}\b/.test(cmd);
+
+    let activeStep = step;
+
+    // Step 1: Age setting
+    if (activeStep === 1) {
+      const ageMatch = lower.match(/(\d+)/);
+      if (ageMatch) {
+        const newAge = parseInt(ageMatch[1]);
+        if (newAge >= 18 && newAge <= 65) {
+          setAge(newAge);
+          console.log(`✓ Age set to: ${newAge}`);
+          return;
+        }
+      }
+
+      // If voice looks like income info while on age step, advance to income.
+      if (isIncomeIntent(lower)) {
+        setStep(2);
+        activeStep = 2;
+        console.log('➡️ Interpreted as income command; moving to Step 2');
+      } else if (isExpenseIntent(lower)) {
+        setStep(3);
+        activeStep = 3;
+        console.log('➡️ Interpreted as expense command; moving to Step 3');
+      }
+    }
+    
+    // Step 2: Monthly income
+    if (activeStep === 2) {
+      // First try to extract direct number
+      const incomeMatch = lower.match(/(\d+)/);
+      if (incomeMatch) {
+        const num = parseInt(incomeMatch[1]);
+        // If it's a 5-6 digit number, treat it as income value
+        if (num >= 10000) {
+          setManualIncome(num.toString());
+          setMonthlyIncome(67500); // Reset preset
+          console.log(`✓ Income set to: ${num}`);
+          return;
+        }
+      }
+      
+      // Handle preset options with various wordings
+      if (lower.includes('under') || lower.includes('early') || lower.includes('35') && !lower.includes('lakh')) {
+        setMonthlyIncome(25000);
+        setManualIncome('');
+        console.log(`✓ Income set to: Under 35K`);
+      } else if (lower.includes('lakh') && (lower.includes('1') || lower.includes('100')) || lower.includes('growing') || lower.includes('67') || lower.includes('70')) {
+        setMonthlyIncome(67500);
+        setManualIncome('');
+        console.log(`✓ Income set to: 35K-1L`);
+      } else if (lower.includes('2.5') || lower.includes('175') || lower.includes('senior')) {
+        setMonthlyIncome(175000);
+        setManualIncome('');
+        console.log(`✓ Income set to: 1L-2.5L`);
+      } else if (lower.includes('high') || lower.includes('earner') || lower.includes('300') || lower.includes('2.5l')) {
+        setMonthlyIncome(300000);
+        setManualIncome('');
+        console.log(`✓ Income set to: 2.5L+`);
+      }
+      return;
+    }
+    
+    // Step 3: Monthly expenses
+    if (activeStep === 3) {
+      // First try to extract direct number
+      const expenseMatch = lower.match(/(\d+)/);
+      if (expenseMatch) {
+        const num = parseInt(expenseMatch[1]);
+        // If it's a 4-6 digit number, treat it as expense value
+        if (num >= 10000) {
+          setManualExpenses(num.toString());
+          setMonthlyExpenses(42500); // Reset preset
+          console.log(`✓ Expense set to: ${num}`);
+          return;
+        }
+      }
+      
+      // Handle preset options with various wordings
+      if (lower.includes('under') || lower.includes('25') && !lower.includes('lakh')) {
+        setMonthlyExpenses(20000);
+        setManualExpenses('');
+        console.log(`✓ Expense set to: Under 25K`);
+      } else if (lower.includes('42') || lower.includes('60') || lower.includes('growing')) {
+        setMonthlyExpenses(42500);
+        setManualExpenses('');
+        console.log(`✓ Expense set to: 25K-60K`);
+      } else if (lower.includes('105') || lower.includes('1.5') || lower.includes('lakh')) {
+        setMonthlyExpenses(105000);
+        setManualExpenses('');
+        console.log(`✓ Expense set to: 60K-1.5L`);
+      } else if (lower.includes('high') || lower.includes('180') || lower.includes('150')) {
+        setMonthlyExpenses(180000);
+        setManualExpenses('');
+        console.log(`✓ Expense set to: 1.5L+`);
+      }
+      return;
+    }
+    
+    // Step 4: Goals (multi-select)
+    if (activeStep === 4) {
+      let foundAny = false;
+      const normalizedGoalPhrase = lower.replace(/[‘’']/g, '');
+
+      for (const goal of GOALS) {
+        const goalNormalized = goal.toLowerCase().replace(/[‘’']/g, '');
+        const goalKeyword = goalNormalized.split(' ')[0];
+
+        if (normalizedGoalPhrase.includes(goalNormalized) || normalizedGoalPhrase.includes(goalKeyword)) {
+          if (!goals.includes(goal)) {
+            setGoals(prev => [...prev, goal]);
+            console.log(`✓ Goal selected: ${goal}`);
+            foundAny = true;
+          }
+        }
+      }
+
+      if (foundAny) {
+        setStep(5); // Advance to next question automatically
+        console.log('➡️ Goal set; moving to step 5');
+      }
+      return;
+    }
+    
+    // Step 5: Investments (multi-select)
+    if (activeStep === 5) {
+      let foundAny = false;
+      const normalizedInvestmentPhrase = lower.replace(/[‘’']/g, '');
+
+      for (const investment of INVESTMENTS) {
+        const investNormalized = investment.toLowerCase().replace(/[‘’']/g, '');
+        const investmentKeyword = investNormalized.split(' ')[0];
+
+        if (normalizedInvestmentPhrase.includes(investNormalized) || normalizedInvestmentPhrase.includes(investmentKeyword)) {
+          if (!investments.includes(investment)) {
+            setInvestments(prev => [...prev, investment]);
+            console.log(`✓ Investment selected: ${investment}`);
+            foundAny = true;
+          }
+        }
+      }
+
+      if (foundAny) {
+        setStep(6); // Advance to next question automatically
+        console.log('➡️ Investment set; moving to step 6');
+      }
+      return;
+    }
+    
+    // Step 6: Risk profile
+    if (activeStep === 6) {
+      let riskSet = false;
+      if (lower.includes('conservative') || lower.includes('safety') || lower.includes('sleep')) {
+        setRiskProfile('conservative');
+        console.log(`✓ Risk profile set to: Conservative`);
+        riskSet = true;
+      } else if (lower.includes('moderate') || lower.includes('balanced') || lower.includes('average')) {
+        setRiskProfile('moderate');
+        console.log(`✓ Risk profile set to: Moderate`);
+        riskSet = true;
+      } else if (lower.includes('aggressive') || lower.includes('growth') || lower.includes('risk') || lower.includes('rocket')) {
+        setRiskProfile('aggressive');
+        console.log(`✓ Risk profile set to: Aggressive`);
+        riskSet = true;
+      }
+
+      if (riskSet) {
+        setStep(7);
+        console.log('➡️ Risk profile set; moving to step 7');
+      }
+      return;
+    }
+    
+    // Step 7: Primary concern
+    if (activeStep === 7) {
+      const normalizedConcernPhrase = lower.replace(/[‘’']/g, '');
+      let foundConcern = false;
+
+      for (const concern of CONCERNS) {
+        const concernNormalized = concern.toLowerCase().replace(/[‘’']/g, '');
+        if (normalizedConcernPhrase.includes(concernNormalized) || concernNormalized.includes(normalizedConcernPhrase)) {
+          setPrimaryConcern(concern);
+          console.log(`✓ Concern selected: ${concern}`);
+          foundConcern = true;
+          break;
+        }
+
+        const keywords = concernNormalized.split(' ');
+        for (const keyword of keywords) {
+          if (keyword.length > 3 && normalizedConcernPhrase.includes(keyword)) {
+            setPrimaryConcern(concern);
+            console.log(`✓ Concern selected: ${concern}`);
+            foundConcern = true;
+            break;
+          }
+        }
+
+        if (foundConcern) break;
+      }
+
+      if (foundConcern) {
+        console.log('✅ Concern step complete');
+      }
+
+      return;
+    }
+  };
 
   const canProceed = useMemo(() => {
     if (step === 1) return age >= 18 && age <= 65;
@@ -328,6 +558,7 @@ export function OnboardingQuiz({ onCompleted }: OnboardingQuizProps) {
           </motion.div>
         </AnimatePresence>
       </div>
+      <VoiceAssistant onNavigate={handleVoiceNavigate} onType={handleVoiceType} />
     </div>
   );
 }
