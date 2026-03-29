@@ -7,6 +7,7 @@ import { FinancialStatusStrip } from './FinancialStatusStrip';
 import { useUserProfile } from '../context/UserProfileContext';
 import { useTransactionSummary, useTransactionsList } from '@/hooks/useTransactions';
 import { SMSImport } from '@/components/SMSImport';
+import { FinancialHealthReport } from '@/components/FinancialHealthReport';
 import { TaxTips } from '@/components/TaxTips';
 import { Skeleton } from './ui/skeleton';
 
@@ -228,15 +229,20 @@ export function MainDashboard({ onNavigateToPage }: MainDashboardProps = {}) {
   return (
     <div className="h-full overflow-y-auto bg-white/45 backdrop-blur-[2px] p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">
-            {timeGreeting}, {profile.name || 'there'} 👋
-          </h1>
-          <p className="text-gray-600">
-            {hasTransactions
-              ? 'Here’s your financial overview from transactions stored for your account.'
-              : 'No transactions yet — import your first UPI SMS above!'}
-          </p>
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">
+              {timeGreeting}, {profile.name || 'there'} 👋
+            </h1>
+            <p className="text-gray-600">
+              {hasTransactions
+                ? 'Here’s your financial overview from transactions stored for your account.'
+                : 'No transactions yet — import your first UPI SMS above!'}
+            </p>
+          </div>
+          <div className="shrink-0">
+            <FinancialHealthReport />
+          </div>
         </div>
 
         {summaryError && (

@@ -1,4 +1,5 @@
 import { TrendingUp, TrendingDown, AlertCircle, CheckCircle, Shield, Wallet, Heart, FileText } from 'lucide-react';
+import { FinancialHealthReport } from '@/components/FinancialHealthReport';
 import { useUserProfile } from '../context/UserProfileContext';
 
 interface HealthMetric {
@@ -127,6 +128,9 @@ export function MoneyHealthScore() {
               </div>
             </div>
           </div>
+        </div>
+        <div className="flex justify-center">
+          <FinancialHealthReport />
         </div>
 
         {/* Metrics Breakdown */}
