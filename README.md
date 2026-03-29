@@ -1,237 +1,352 @@
 <div align="center">
 
-# 💰 Money Mentor - Finance Management
+```
+███╗   ███╗ ██████╗ ███╗   ██╗███████╗██╗   ██╗
+████╗ ████║██╔═══██╗████╗  ██║██╔════╝╚██╗ ██╔╝
+██╔████╔██║██║   ██║██╔██╗ ██║█████╗   ╚████╔╝ 
+██║╚██╔╝██║██║   ██║██║╚██╗██║██╔══╝    ╚██╔╝  
+██║ ╚═╝ ██║╚██████╔╝██║ ╚████║███████╗   ██║   
+╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝   ╚═╝   
+                                                 
+███╗   ███╗███████╗███╗   ██╗████████╗ ██████╗ ██████╗ 
+████╗ ████║██╔════╝████╗  ██║╚══██╔══╝██╔═══██╗██╔══██╗
+██╔████╔██║█████╗  ██╔██╗ ██║   ██║   ██║   ██║██████╔╝
+██║╚██╔╝██║██╔══╝  ██║╚██╗██║   ██║   ██║   ██║██╔══██╗
+██║ ╚═╝ ██║███████╗██║ ╚████║   ██║   ╚██████╔╝██║  ██║
+╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝
+```
 
-### *Your AI-powered money companion for India*
+### 🇮🇳 India's AI-Powered Personal Finance Companion
 
-![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-6-646CFF?style=for-the-badge&logo=vite&logoColor=white)
-![Node](https://img.shields.io/badge/Node-Express-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
-![Gemini](https://img.shields.io/badge/Google_Gemini-AI-4285F4?style=for-the-badge&logo=google&logoColor=white)
+<br/>
 
-<br />
+[![Made with React](https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev)
+[![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://postgresql.org)
+[![Gemini AI](https://img.shields.io/badge/Gemini_2.5_Flash-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://deepmind.google/technologies/gemini/)
+[![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://android.com)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
 
-**Plan · Track · Invest · Simulate** - all in one beautiful dashboard.
+<br/>
 
-[Features](#-features) · [Architecture](#-architecture) · [Quick start](#-quick-start) · [Environment](#-environment-variables)
+> **"Mere paison ka kya hoga?"** — Stop asking. Start knowing.
+
+<br/>
 
 </div>
 
 ---
 
-## ✨ Highlights
+## 🚀 The Problem We're Solving
 
-| | |
-|:---:|:---|
-| 🧠 | **AI chat** tuned for Indian money — English, Hindi, or Hinglish |
-| 📊 | **Live dashboard** with charts, categories, and month trends |
-| 🎤 | **Voice assistant** (Pro) — replies match the language you speak |
-| 📱 | **UPI / bank SMS import** — paste SMS, parse, save to your ledger |
-| 🎯 | **Money health score**, goals, risk profile, and personalised “next move” |
-| 🔮 | **Future simulator** (Pro) — stress-test savings and goals |
+India has **500M+ smartphone users**, but most personal finance apps are built for the West — they don't understand UPI, bank SMS alerts, Indian tax rules (80C, 80D, HRA), or government schemes like PM Jan Dhan, Atal Pension Yojana, and Sukanya Samriddhi.
+
+**Result?** Millions of Indians are financially flying blind.
+
+**Money Mentor** changes that.
 
 ---
 
-## 🎨 Feature tour
+## ✨ What Is Money Mentor?
 
-<details>
-<summary><strong>🖥️ Dashboard & insights</strong></summary>
+Money Mentor is a **full-stack, AI-powered personal finance web app** (with an Android shell) designed ground-up for Indian users. It combines:
 
-- Time-based greeting, net income/expense cards, pie & bar charts  
-- **Financial status strip** and **dynamic “Your next financial move”** from your profile + real transactions  
-- Latest transactions list  
+- 🤖 **A conversational AI advisor** powered by Google Gemini 2.5 Flash
+- 📱 **Automatic SMS transaction tracking** from your bank alerts
+- 🧾 **Indian tax optimization tips** tailored to your spending
+- 🏛️ **Government scheme discovery** you actually qualify for
+- 📈 **Mutual fund insights** with live NAV data
+- 💡 **Smart financial health scoring** and fire-age simulation
 
-</details>
+All in one app. All built for Bharat.
 
-<details>
-<summary><strong>💬 AI & voice</strong></summary>
+---
 
-- **Money Mentor** chat with your real numbers (income, expenses, goals, this month’s spend)  
-- **Voice assistant** (Pro): Web Speech API + Gemini; language-aware replies and TTS  
+## 🎬 Demo
 
-</details>
+```
+📱 Scan a QR → Auto-tracked as a UPI transaction
+💬 Ask "How can I save more tax this year?" → AI replies with your exact numbers
+📩 Bank SMS arrives → Parsed & categorized in seconds
+```
 
-<details>
-<summary><strong>📒 Money tools</strong></summary>
-
-- **Expenses** — categories, limits, tips tied to your profile  
-- **Tax tips** — dashboard cards + full page  
-- **Schemes & opportunities**  
-- **Bad decision detector** & **impact feed** (Pro)  
-- **Onboarding quiz** after signup (age, income, expenses, goals, risk)  
-
-</details>
-
-<details>
-<summary><strong>🔐 Accounts & plans</strong></summary>
-
-- Register / login with JWT sessions  
-- **Free** vs **Pro** (simulator, voice, extended chat, PDF export, SMS sync messaging, etc.)  
-
-</details>
+> **Live Demo:** `[your-deployment-url-here]`
 
 ---
 
 ## 🏗️ Architecture
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                     React + Vite (frontend)                 │
-│   Tailwind · shadcn/ui · Recharts · TanStack Query · Motion │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ REST + Bearer JWT
-┌──────────────────────────▼──────────────────────────────────┐
-│                  Express 5 (backend/server)                 │
-│        Auth · Profile · Transactions · AI (Gemini)          │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────┐
-│                      PostgreSQL                             │
-└─────────────────────────────────────────────────────────────┘
+```
+┌─────────────────────────────────────────────────────────┐
+│                        CLIENT                           │
+│  ┌──────────────────┐     ┌──────────────────────────┐  │
+│  │  React 18 + Vite │     │  Capacitor Android Shell │  │
+│  │  TypeScript SPA  │     │  (Native SMS Plugin)     │  │
+│  └────────┬─────────┘     └────────────┬─────────────┘  │
+└───────────│─────────────────────────────│───────────────┘
+            │ HTTPS /api                  │ HTTPS /api
+┌───────────▼─────────────────────────────▼───────────────┐
+│                     BACKEND (Express 5)                 │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐  │
+│  │Auth + JWT│  │Transact- │  │ Tax Tips │  │AI Chat │  │
+│  │Sessions  │  │ions CRUD │  │ Engine   │  │Handler │  │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └───┬────┘  │
+│       └─────────────┴──────────────┴────────────┘       │
+│                         │                               │
+│               ┌──────────▼──────────┐                   │
+│               │    PostgreSQL DB     │                   │
+│               └─────────────────────┘                   │
+│                                                         │
+│        ┌──────────────┐    ┌──────────────┐             │
+│        │ Google Gemini│    │   mfapi.in   │             │
+│        │  2.5 Flash   │    │  (MF + NAV)  │             │
+│        └──────────────┘    └──────────────┘             │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🚀 Quick start
+## 💎 Feature Deep-Dive
+
+### 🧠 AI Money Advisor
+Every conversation with the AI isn't generic — it's **loaded with your actual financial context**: your current month's income, expenses, savings rate, risk profile, investment goals, and top spending categories. You're not talking to a chatbot. You're talking to a personal CFO who knows your numbers.
+
+```
+User: "Should I invest in mutual funds this month?"
+AI:   "Based on your ₹45,000 income and ₹32,000 expenses this month,
+       you have a 28.8% savings rate. With your moderate risk profile
+       and SIP in HDFC Flexi Cap, I'd suggest..."
+```
+
+- Voice mode with English / Hindi / Hinglish support
+- Free tier: 10 messages/day | Pro: Unlimited
+- Conversation history maintained per session
+
+---
+
+### 📩 SMS Auto-Import (Android)
+The killer feature. No manual entry needed.
+
+When a bank SMS arrives — `"Rs.450 debited from A/C XX1234 at SWIGGY UPI Ref: 4123..."` — Money Mentor's native **SmsPlugin** (Capacitor) intercepts it, parses it with regex heuristics for amount, merchant, type, UPI ref, and date, then **automatically categorizes and saves it** as a transaction. Bulk inbox import also supported.
+
+---
+
+### 📊 Indian Tax Intelligence
+Built around the **Indian Financial Year (April–March)**:
+
+- **Section 80C**: Tracks your investment spending toward the ₹1.5L limit
+- **Section 80D**: Health insurance premiums detected via keyword matching
+- **HRA**: Rent keywords flagged for home rent allowance claims
+- Dismissed tips are remembered — no repeats
+
+---
+
+### 🏛️ Government Scheme Discovery
+Surfaces real schemes you likely qualify for — PM Jan Dhan, Atal Pension Yojana, Sukanya Samriddhi, PMSBY — based on your income and profile. No more missing out.
+
+---
+
+### 🔒 Security Architecture
+- **Passwords**: `scrypt`-hashed with per-user salt (no bcrypt shortcuts)
+- **Sessions**: JWT + server-side `user_sessions` table with `jti`, token hash, and revoke-on-logout
+- **No reuse**: Logged-out tokens are invalidated at the DB level — no stateless trust
+
+---
+
+### 📈 Future Simulator & Financial Health Score
+- **Money Health Score**: Computed from savings rate, SIP presence, expense ratios
+- **FIRE Age Calculator**: When can you retire? Based on your actual income and investments
+- **Recommended SIP**: Personalized monthly investment suggestion
+- **Estimated Tax Savings**: Based on your transaction patterns
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology | Why |
+|-------|-----------|-----|
+| Frontend | React 18 + TypeScript + Vite 6 | Fast, type-safe, modern DX |
+| Styling | Tailwind CSS 4 | Utility-first, zero dead CSS |
+| UI | Radix UI + shadcn + MUI | Accessible, composable, beautiful |
+| Data Fetching | TanStack Query v5 | Smart caching + background sync |
+| Charts | Recharts | Lightweight, composable |
+| Backend | Express 5 + Node.js (ESM) | Fast, minimal, standard |
+| Database | PostgreSQL + `pg` pool | Reliable, powerful, relational |
+| Auth | JWT + `user_sessions` table | Stateful security |
+| AI | Google Gemini 2.5 Flash | State-of-the-art, cost-effective |
+| Android | Capacitor 8 | Web → Native bridge, zero rewrite |
+| MF Data | mfapi.in | Free, reliable Indian MF NAV API |
+
+---
+
+## 📦 Project Structure
+
+```
+money-mentor/
+├── frontend/                  # React 18 SPA (Vite)
+│   ├── src/
+│   │   ├── components/        # Feature components
+│   │   │   ├── AIChat.tsx     # Gemini chat interface
+│   │   │   ├── Dashboard.tsx  # Main dashboard
+│   │   │   ├── TaxTips.tsx    # Tax optimization UI
+│   │   │   └── ui/            # shadcn-style primitives
+│   │   ├── hooks/             # useTransactions, usePlan, useSmsAutoImport…
+│   │   ├── context/           # UserProfileContext, ReplyLanguageContext
+│   │   └── App.tsx            # App shell + routing
+├── backend/
+│   ├── index.js               # Express app entry + ensureSchema()
+│   ├── routes/
+│   │   ├── auth.js            # Register / Login / Logout / Me
+│   │   ├── transactions.js    # CRUD + SMS parser
+│   │   ├── ai.js              # Gemini chat endpoint
+│   │   ├── taxTips.js         # Tax tip generation/dismissal
+│   │   └── mf.js              # Mutual fund proxy
+│   ├── profileHelpers.js      # Derived financial metrics
+│   └── migrations/            # SQL migration files
+├── capacitor.config.json      # Android app config
+├── android/                   # Native Android project
+└── package.json               # npm workspaces root
+```
+
+---
+
+## ⚡ Getting Started
 
 ### Prerequisites
+- Node.js 20+
+- PostgreSQL 14+
+- Google Gemini API Key ([Get one free](https://aistudio.google.com/))
 
-- **Node.js** 18+ and **npm** 10+  
-- **PostgreSQL** 14+ (local or hosted, e.g. Neon / Supabase / Railway)  
-- **Google AI Studio** API key for Gemini ([get a key](https://aistudio.google.com/apikey))  
-
-### 1️⃣ Clone & install
-
+### 1. Clone & Install
 ```bash
-git clone <your-repo-url>
-cd "Finance Management Website"
+git clone https://github.com/your-username/money-mentor.git
+cd money-mentor
 npm install
 ```
 
-This installs **root** + **frontend** + **backend** workspaces.
+### 2. Configure Environment
+```bash
+# backend/.env
+DATABASE_URL=postgresql://user:pass@localhost:5432/moneymentor
+JWT_SECRET=your-super-secret-key-change-in-production
+GEMINI_API_KEY=your-gemini-api-key
+PORT=4000
 
-### 2️⃣ Database
+# frontend (optional)
+VITE_API_URL=http://localhost:4000/api
+```
 
-Create a database (example name: `finance_management`), then either:
-
-- set `DATABASE_URL`, **or**  
-- set `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_SSL`  
-
-The server runs migrations on startup when possible; you can also run:
-
+### 3. Run Migrations
 ```bash
 npm run migrate -w backend
 ```
 
-### 3️⃣ Backend environment
-
-Create **`backend/.env`** (never commit real secrets):
-
-```env
-PORT=4000
-
-# Option A — single URL
-# DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/finance_management
-
-# Option B — separate fields (local example)
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=finance_management
-DB_USER=postgres
-DB_PASSWORD=your_password
-DB_SSL=false
-
-GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=gemini-2.5-flash
-```
-
-### 4️⃣ Run the app
-
-**Terminal A — API**
-
+### 4. Start Dev Servers
 ```bash
+# Terminal 1 — Backend
 npm run server
-```
 
-**Terminal B — frontend**
-
-```bash
+# Terminal 2 — Frontend
 npm run dev
 ```
 
-Open the URL Vite prints (usually **http://localhost:5173**).
+Visit **`http://localhost:5173`** 🎉
 
-**Frontend API base** — copy `frontend/.env.example` to `frontend/.env` if needed:
-
-| `VITE_API_URL` | When to use |
-|:---------------|:------------|
-| `http://localhost:4000/api` | Browser calls Express directly (CORS must allow your dev origin). |
-| `/api` | Vite dev server proxies `/api` → `http://localhost:4000` (see `vite.config.ts`). |
-
-Default in code is `http://localhost:4000/api` if unset.
-
-### 5️⃣ Production build (frontend)
-
+### 5. Build for Production
 ```bash
 npm run build
 ```
 
-Output is under `frontend/dist` — serve with any static host; ensure the API is reachable and CORS is configured for your domain.
-
----
-
-## 🔧 Environment variables
-
-| Variable | Where | Purpose |
-|:---------|:------|:--------|
-| `PORT` | backend | API port (default `4000`) |
-| `DATABASE_URL` *or* `DB_*` | backend | Postgres connection |
-| `GEMINI_API_KEY` | backend | AI chat & voice |
-| `GEMINI_MODEL` | backend | Optional model override |
-| `VITE_API_URL` | frontend | API base URL (must end with `/api`) |
-
----
-
-## 📁 Project layout
-
-```text
-Finance Management Website/
-├── frontend/          # Vite + React app (src/app, components, hooks)
-├── backend/
-│   ├── server/        # Express entry & routes (index.js, helpers)
-│   └── scripts/       # Migrations
-├── package.json       # workspaces: dev, build, server
-└── README.md
+### 6. Android (Optional)
+```bash
+npx cap sync android
+npx cap open android
+# Build & run from Android Studio
 ```
 
 ---
 
-## 🛡️ Security notes
+## 🗄️ Database Schema
 
-- Keep **`backend/.env`** out of git (use `.gitignore`).  
-- Rotate any key that was ever committed or shared.  
-- Use strong passwords and SSL (`DB_SSL=true`) for production databases.  
+```sql
+users             → id, full_name, email, password_hash, plan, plan_expires_at
+user_sessions     → id, user_id, jwt_id, token_hash, expires_at, revoked_at
+transactions      → id, user_id, amount, type, merchant, category, 
+                    upi_ref, source, raw_sms, transaction_date
+user_profiles     → id, user_id, age, income, expenses, goals (JSONB),
+                    current_investments (JSONB), risk_profile
+tax_tips          → id, user_id, month, category, tip_text, dismissed_at
+schema_migrations → filename, applied_at
+```
+
+---
+
+## 🔌 API Reference
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/api/health` | ❌ | DB health check |
+| `POST` | `/api/auth/register` | ❌ | Create account |
+| `POST` | `/api/auth/login` | ❌ | Login + JWT |
+| `GET` | `/api/auth/me` | ✅ | Current user |
+| `POST` | `/api/auth/logout` | ✅ | Revoke session |
+| `GET/PUT` | `/api/profile` | ✅ | Financial profile |
+| `GET` | `/api/stats` | ✅ | Monthly + 6-month trend |
+| `GET/POST/DELETE` | `/api/transactions/*` | ✅ | Transaction CRUD |
+| `POST` | `/api/transactions/parse-sms` | ✅ | Parse bank SMS text |
+| `GET/POST` | `/api/tax-tips/*` | ✅ | Tax tips + dismiss |
+| `POST` | `/api/ai/chat` | ✅ | AI conversation |
+| `GET` | `/api/mf/search` | ✅ | Mutual fund search |
+| `GET` | `/api/mf/top` | ✅ | Top funds + live NAV |
+
+---
+
+## 🗺️ Roadmap
+
+- [ ] 🏦 Bank account OAuth integration (AA framework)
+- [ ] 💳 Credit card statement PDF import
+- [ ] 🔔 Spending alerts & budget breach notifications
+- [ ] 📅 EMI & subscription tracker
+- [ ] 🧮 Advanced tax filing assistant (ITR-1 prep)
+- [ ] 👨‍👩‍👧 Family finance mode (multi-user household)
+- [ ] 🌐 Hindi / regional language full UI
+
+---
+
+## ⚠️ Privacy & Compliance Notes
+
+- **SMS Access**: Android READ_SMS permission is required for auto-import. Data is processed on-device before being sent to the backend over HTTPS.
+- **AI Processing**: Financial summary data (aggregated totals, not raw transactions) is sent to Google Gemini. Review [Google's data policy](https://policies.google.com/).
+- **Mutual Fund Data**: Sourced from [mfapi.in](https://mfapi.in/) — an independent third-party service.
 
 ---
 
 ## 🤝 Contributing
 
-Issues and PRs are welcome. Please keep changes focused, match existing code style, and avoid committing secrets.
+PRs are welcome! Please open an issue first to discuss major changes.
+
+1. Fork the repo
+2. Create your branch: `git checkout -b feature/your-feature`
+3. Commit: `git commit -m "feat: add your feature"`
+4. Push: `git push origin feature/your-feature`
+5. Open a Pull Request
 
 ---
 
 ## 📄 License
 
-Private / personal project unless you add an explicit license file.
+MIT — free to use, modify, and distribute.
 
 ---
 
 <div align="center">
 
-**Built with 💚 for smarter everyday money decisions in India**
+**Built with ❤️ for Bharat 🇮🇳**
 
-🌿 · 📈 · 🏠 · ✈️
+*Because every Indian deserves a smart money mentor in their pocket.*
+
+<br/>
+
+⭐ **Star this repo if Money Mentor helped you!** ⭐
 
 </div>
