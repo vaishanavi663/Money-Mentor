@@ -85,66 +85,6 @@ export function LandingPage({ onGetStartedFree, onGetStartedPro, onLogin }: Land
           </div>
         </div>
 
-        {/* Testimonials */}
-        <div className="bg-white rounded-3xl p-12 mb-20">
-          <h2 className="text-3xl font-bold text-center mb-12">What Our Users Say</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="space-y-4">
-              <div className="flex gap-1">
-                {[...Array(5)].map((_, i) => (
-                  <span key={i} className="text-yellow-400">★</span>
-                ))}
-              </div>
-              <p className="text-gray-600 italic">
-                "Finally, a finance app that speaks my language! The Hinglish responses make it so easy to understand."
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-blue-500 rounded-full"></div>
-                <div>
-                  <div className="font-medium">Priya Sharma</div>
-                  <div className="text-sm text-gray-500">Software Engineer, Bangalore</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex gap-1">
-                {[...Array(5)].map((_, i) => (
-                  <span key={i} className="text-yellow-400">★</span>
-                ))}
-              </div>
-              <p className="text-gray-600 italic">
-                "The future simulator opened my eyes. I can now see exactly where my money will take me in 5 years."
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full"></div>
-                <div>
-                  <div className="font-medium">Rahul Verma</div>
-                  <div className="text-sm text-gray-500">Marketing Manager, Delhi</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex gap-1">
-                {[...Array(5)].map((_, i) => (
-                  <span key={i} className="text-yellow-400">★</span>
-                ))}
-              </div>
-              <p className="text-gray-600 italic">
-                "Best part? It stops me from making stupid purchases. Saved ₹50,000 last month!"
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-red-500 rounded-full"></div>
-                <div>
-                  <div className="font-medium">Anjali Patel</div>
-                  <div className="text-sm text-gray-500">Freelance Designer, Mumbai</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Pricing */}
         <div className="text-center">
           <h2 className="text-3xl font-bold mb-12">Simple Pricing</h2>

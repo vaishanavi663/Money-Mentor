@@ -97,7 +97,7 @@ export function SMSImport() {
   };
 
   return (
-    <Card className="border border-gray-200 bg-white p-6 shadow-sm">
+    <Card id="sms-import-section" className="border border-gray-200 bg-white p-6 shadow-sm scroll-mt-6">
       {isPro && (
         <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4">
           <h3 className="text-sm font-semibold text-emerald-900">Android SMS auto-import (Pro)</h3>

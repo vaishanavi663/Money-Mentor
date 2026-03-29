@@ -33,23 +33,7 @@ const GOALS = [
   "Wealth Creation",
 ];
 
-const INVESTMENTS = [
-  "FD / Savings Account",
-  "Mutual Funds / SIPs",
-  "Direct Stocks",
-  "PPF / NPS",
-  "Life Insurance",
-  "Nothing yet — just starting",
-];
-
-const CONCERNS = [
-  "I'm spending more than I earn",
-  "I'm paying too much tax",
-  "I have no investments / savings",
-  "I want to buy property",
-  "I don't know when I can retire",
-  "I have debt I want to clear",
-];
+const TOTAL_STEPS = 5;
 
 function OptionCard({
   isSelected,
@@ -82,9 +66,7 @@ export function OnboardingQuiz({ onCompleted }: OnboardingQuizProps) {
   const [monthlyExpenses, setMonthlyExpenses] = useState<number>(42500);
   const [manualExpenses, setManualExpenses] = useState("");
   const [goals, setGoals] = useState<string[]>([]);
-  const [investments, setInvestments] = useState<string[]>([]);
   const [riskProfile, setRiskProfile] = useState<RiskProfile | null>(null);
-  const [primaryConcern, setPrimaryConcern] = useState("");
 
   const selectedIncome = useMemo(() => {
     const manual = Number(manualIncome);
@@ -110,15 +92,13 @@ export function OnboardingQuiz({ onCompleted }: OnboardingQuizProps) {
     if (step === 2) return selectedIncome > 0;
     if (step === 3) return selectedExpenses > 0;
     if (step === 4) return goals.length > 0;
-    if (step === 5) return investments.length > 0;
-    if (step === 6) return Boolean(riskProfile);
-    if (step === 7) return Boolean(primaryConcern);
+    if (step === 5) return Boolean(riskProfile);
     return false;
-  }, [age, goals.length, investments.length, primaryConcern, riskProfile, selectedExpenses, selectedIncome, step]);
+  }, [age, goals.length, riskProfile, selectedExpenses, selectedIncome, step]);
 
   const goNext = () => {
     if (!canProceed) return;
-    if (step < 7) {
+    if (step < TOTAL_STEPS) {
       setStep((prev) => prev + 1);
       return;
     }
@@ -127,9 +107,9 @@ export function OnboardingQuiz({ onCompleted }: OnboardingQuizProps) {
       monthlyIncome: selectedIncome,
       monthlyExpenses: selectedExpenses,
       goals,
-      currentInvestments: investments,
+      currentInvestments: [],
       riskProfile: riskProfile || "moderate",
-      primaryConcern,
+      primaryConcern: "",
     });
     onCompleted();
   };
@@ -141,10 +121,10 @@ export function OnboardingQuiz({ onCompleted }: OnboardingQuizProps) {
           <div className="mb-2 flex items-center justify-between text-sm text-emerald-100">
             <span>{profile.name ? `Welcome ${profile.name}, let's personalize your dashboard` : "Let's personalize your dashboard"}</span>
             <span>
-              Step {step} of 7
+              Step {step} of {TOTAL_STEPS}
             </span>
           </div>
-          <Progress value={(step / 7) * 100} className="h-2 bg-white/20" />
+          <Progress value={(step / TOTAL_STEPS) * 100} className="h-2 bg-white/20" />
         </div>
 
         <AnimatePresence mode="wait">
@@ -248,24 +228,6 @@ export function OnboardingQuiz({ onCompleted }: OnboardingQuizProps) {
 
             {step === 5 && (
               <div className="my-auto">
-                <h2 className="text-3xl font-bold text-gray-900">What do you currently invest in?</h2>
-                <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                  {INVESTMENTS.map((item) => (
-                    <OptionCard
-                      key={item}
-                      title={item}
-                      isSelected={investments.includes(item)}
-                      onClick={() =>
-                        setInvestments((prev) => (prev.includes(item) ? prev.filter((value) => value !== item) : [...prev, item]))
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {step === 6 && (
-              <div className="my-auto">
                 <h2 className="text-3xl font-bold text-gray-900">How do you feel about investment risk?</h2>
                 <div className="mt-6 grid gap-3">
                   <OptionCard
@@ -291,22 +253,6 @@ export function OnboardingQuiz({ onCompleted }: OnboardingQuizProps) {
               </div>
             )}
 
-            {step === 7 && (
-              <div className="my-auto">
-                <h2 className="text-3xl font-bold text-gray-900">What's your biggest financial worry today?</h2>
-                <div className="mt-6 grid gap-3">
-                  {CONCERNS.map((item) => (
-                    <OptionCard
-                      key={item}
-                      title={item}
-                      isSelected={primaryConcern === item}
-                      onClick={() => setPrimaryConcern(item)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div className="mt-8 flex items-center justify-between">
               <button
                 type="button"
@@ -322,7 +268,7 @@ export function OnboardingQuiz({ onCompleted }: OnboardingQuizProps) {
                 disabled={!canProceed}
                 className="rounded-xl bg-gradient-to-r from-emerald-600 to-blue-600 px-6 py-3 font-semibold text-white transition-opacity disabled:opacity-50"
               >
-                {step === 7 ? "Complete onboarding" : "Continue"}
+                {step === TOTAL_STEPS ? "Complete onboarding" : "Continue"}
               </button>
             </div>
           </motion.div>

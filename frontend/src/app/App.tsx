@@ -264,7 +264,9 @@ export default function App() {
 
       {/* Main Content Area */}
       <div className="relative z-10 flex min-h-0 flex-1 overflow-hidden">
-        {activePage === 'dashboard' && <MainDashboard />}
+        {activePage === 'dashboard' && (
+          <MainDashboard onNavigateToPage={(page) => setActivePage(page)} />
+        )}
         {activePage === 'chat' && <AIChat />}
         {activePage === 'expenses' && <ExpensesDashboard />}
         {activePage === 'simulator' &&

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TrendingUp, TrendingDown, Wallet, CreditCard, AlertCircle, ArrowUp } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { NextFinancialMove } from './NextFinancialMove';
+import type { NextMoveAppPage } from '../lib/nextFinancialMove';
 import { FinancialStatusStrip } from './FinancialStatusStrip';
 import { useUserProfile } from '../context/UserProfileContext';
 import { useTransactionSummary, useTransactionsList } from '@/hooks/useTransactions';
@@ -21,7 +22,11 @@ function monthLabel(month: number, year: number): string {
   return new Date(year, month - 1, 1).toLocaleString('en-IN', { month: 'short' });
 }
 
-export function MainDashboard() {
+interface MainDashboardProps {
+  onNavigateToPage?: (page: NextMoveAppPage) => void;
+}
+
+export function MainDashboard({ onNavigateToPage }: MainDashboardProps = {}) {
   const { profile } = useUserProfile();
   const { data: summary, isLoading: summaryLoading, isError: summaryError } = useTransactionSummary();
   const { data: recentPage, isLoading: recentLoading } = useTransactionsList({ limit: 10, offset: 0 });
@@ -108,6 +113,21 @@ export function MainDashboard() {
   const monthIncome = income;
   const monthExpenses = expenses;
   const topCategory = expenseData[0];
+
+  const transactionSnapshot = useMemo(
+    () => ({
+      hasTransactions,
+      monthIncome,
+      monthExpenses,
+      monthNet: net,
+      topCategoryName: topCategory?.name,
+    }),
+    [hasTransactions, monthIncome, monthExpenses, net, topCategory?.name],
+  );
+
+  const scrollToSmsImport = useCallback(() => {
+    document.getElementById('sms-import-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
 
   const statusStrip = useMemo(() => {
     const actionForTopCategory = topCategory
@@ -239,7 +259,11 @@ export function MainDashboard() {
           actionText={statusStrip.actionText}
         />
 
-        <NextFinancialMove />
+        <NextFinancialMove
+          transactionContext={transactionSnapshot}
+          onNavigateToPage={onNavigateToPage}
+          onScrollToSmsImport={scrollToSmsImport}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {loading

@@ -11,11 +11,27 @@ declare global {
   }
 }
 
-/** TTS language from reply script: English text → en-IN, Devanagari-heavy → hi-IN. */
-function synthesisLangForReply(text: string): string {
-  const devanagari = (text.match(/[\u0900-\u097F]/g) ?? []).length;
-  const latin = (text.match(/[a-zA-Z]/g) ?? []).length;
-  if (devanagari > latin) return 'hi-IN';
+/** Infer how the user spoke so the model and TTS match (English / Hindi / Roman Hinglish). */
+function inferVoiceReplyLanguage(text: string): 'en' | 'hi' | 'hinglish' {
+  const trimmed = text.trim();
+  if (!trimmed) return 'en';
+  const devanagari = (trimmed.match(/[\u0900-\u097F]/g) ?? []).length;
+  const latin = (trimmed.match(/[a-zA-Z]/g) ?? []).length;
+  if (devanagari >= 2) return 'hi';
+  const lower = trimmed.toLowerCase();
+  const hinglishPattern =
+    /\b(mera|meri|mere|merko|mujhe|aap|aapka|aapke|kya|kaise|kaisa|kyun|kyo|kitna|kitni|nahi|nahin|haan|hao|bachat|kharche|kamai|paisa|paise|rupaye|nivesh|mein|main|hum|tera|teri|chahiye|batao|samjhao|karu|karna|yeh|ye|wahi|matlab)\b/;
+  if (latin > 0 && hinglishPattern.test(lower) && devanagari === 0) return 'hinglish';
+  return 'en';
+}
+
+function ttsLangForVoice(inferred: 'en' | 'hi' | 'hinglish', reply: string): string {
+  if (inferred === 'hi') return 'hi-IN';
+  if (inferred === 'hinglish') {
+    const dev = (reply.match(/[\u0900-\u097F]/g) ?? []).length;
+    const lat = (reply.match(/[a-zA-Z]/g) ?? []).length;
+    return dev > lat ? 'hi-IN' : 'en-IN';
+  }
   return 'en-IN';
 }
 
@@ -30,6 +46,8 @@ export function VoiceAssistant() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<AiChatTurn[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
+  /** Speech-to-text locale: en-IN for English questions; hi-IN when user prefers Hindi speech. */
+  const [inputSpeechLang, setInputSpeechLang] = useState<'en-IN' | 'hi-IN'>('en-IN');
 
   const historyRef = useRef<AiChatTurn[]>([]);
   const recognitionRef = useRef<any>(null);
@@ -78,10 +96,10 @@ export function VoiceAssistant() {
     recognitionRef.current = null;
   }, []);
 
-  const speakResponse = useCallback((text: string) => {
+  const speakResponse = useCallback((text: string, replyLang: 'en' | 'hi' | 'hinglish') => {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = synthesisLangForReply(text);
+    utterance.lang = ttsLangForVoice(replyLang, text);
     utterance.rate = 0.9;
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
@@ -101,9 +119,25 @@ export function VoiceAssistant() {
       setConversationHistory(withUser);
 
       try {
+        let replyLang = inferVoiceReplyLanguage(userMessage);
+        if (inputSpeechLang === 'hi-IN' && replyLang === 'en' && /[\u0900-\u097F]/.test(userMessage)) {
+          replyLang = 'hi';
+        }
+        if (inputSpeechLang === 'hi-IN' && replyLang === 'en') {
+          const lower = userMessage.toLowerCase();
+          if (
+            /\b(mera|meri|mere|mujhe|kya|kaise|hai|nahi|paisa|bachat)\b/i.test(lower) &&
+            userMessage.length < 120
+          ) {
+            replyLang = 'hinglish';
+          }
+        }
+
         const { reply } = await api.aiChat({
           message: userMessage,
           conversationHistory: withUser,
+          voiceMode: true,
+          voiceReplyLanguage: replyLang,
         });
         const modelTurn: AiChatTurn = { role: 'model', parts: [{ text: reply }] };
         const withModel = [...withUser, modelTurn];
@@ -111,7 +145,7 @@ export function VoiceAssistant() {
         setConversationHistory(withModel);
         setAiResponse(reply);
         setIsThinking(false);
-        speakResponse(reply);
+        speakResponse(reply, replyLang);
       } catch {
         historyRef.current = withUser.slice(0, -1);
         setConversationHistory(historyRef.current);
@@ -119,7 +153,7 @@ export function VoiceAssistant() {
         setErrorMessage('AI unavailable. Please try again.');
       }
     },
-    [speakResponse],
+    [speakResponse, inputSpeechLang],
   );
 
   const startListening = useCallback(() => {
@@ -135,7 +169,7 @@ export function VoiceAssistant() {
     const recognition = new SpeechRecognitionCtor();
     recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.lang = 'hi-IN';
+    recognition.lang = inputSpeechLang;
 
     recognition.onstart = () => setIsListening(true);
 
@@ -264,7 +298,7 @@ export function VoiceAssistant() {
               />
             ))}
           </div>
-          <p className="text-sm text-gray-600 mt-4">Bol rahe ho... (Speaking...)</p>
+          <p className="text-sm text-gray-600 mt-4">Listening…</p>
         </>
       );
     }
@@ -273,7 +307,7 @@ export function VoiceAssistant() {
       return (
         <>
           <Loader2 className="w-12 h-12 text-green-600 animate-spin mx-auto mb-4" />
-          <p className="text-sm text-gray-600">Soch raha hoon... (Thinking...)</p>
+          <p className="text-sm text-gray-600">Thinking…</p>
         </>
       );
     }
@@ -291,7 +325,7 @@ export function VoiceAssistant() {
           {aiResponse ? (
             <p className="text-sm text-gray-800 text-center leading-relaxed mb-3">{aiResponse}</p>
           ) : null}
-          <p className="text-sm text-gray-600 mb-3">Bol raha hoon... (Speaking...)</p>
+          <p className="text-sm text-gray-600 mb-3">Speaking…</p>
           <button
             type="button"
             onClick={stopSpeaking}
@@ -325,7 +359,7 @@ export function VoiceAssistant() {
       return (
         <div className="text-center px-2 w-full">
           <p className="text-sm text-gray-700 mb-2">
-            Aapne kaha: <span className="font-medium">{transcript}</span>
+            You said: <span className="font-medium">{transcript}</span>
           </p>
           {aiResponse ? (
             <p className="text-sm text-gray-600 leading-relaxed mb-4">{aiResponse}</p>
@@ -347,7 +381,7 @@ export function VoiceAssistant() {
           <Mic className="w-8 h-8 text-gray-600" />
         </div>
         <p className="text-gray-600">Click mic to start</p>
-        <p className="text-xs text-gray-500 mt-2">Hindi ya English mein boliye</p>
+        <p className="text-xs text-gray-500 mt-2">Replies match the language you speak</p>
       </div>
     );
   };
@@ -357,7 +391,7 @@ export function VoiceAssistant() {
       return (
         <>
           <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          <span className="text-sm text-gray-600">Sun raha hoon... (Listening)</span>
+          <span className="text-sm text-gray-600">Listening…</span>
         </>
       );
     }
@@ -365,7 +399,7 @@ export function VoiceAssistant() {
       return (
         <>
           <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-          <span className="text-sm text-gray-600">Soch raha hoon... (Thinking)</span>
+          <span className="text-sm text-gray-600">Thinking…</span>
         </>
       );
     }
@@ -373,7 +407,7 @@ export function VoiceAssistant() {
       return (
         <>
           <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-          <span className="text-sm text-gray-600">Bol raha hoon... (Speaking)</span>
+          <span className="text-sm text-gray-600">Speaking…</span>
         </>
       );
     }
@@ -388,7 +422,7 @@ export function VoiceAssistant() {
     return (
       <>
         <div className="w-2 h-2 rounded-full bg-gray-400" />
-        <span className="text-sm text-gray-600">Bolne ke liye mic dabao</span>
+        <span className="text-sm text-gray-600">Tap the mic to talk</span>
       </>
     );
   })();
@@ -420,7 +454,7 @@ export function VoiceAssistant() {
                   </div>
                   <div>
                     <h3 className="font-semibold">Voice Assistant</h3>
-                    <p className="text-xs opacity-80">Speak in Hindi or English</p>
+                    <p className="text-xs opacity-80">English or Hindi — answers follow your language</p>
                   </div>
                 </div>
                 <button
@@ -435,7 +469,32 @@ export function VoiceAssistant() {
 
             <div className="p-8 flex flex-col items-center justify-center min-h-[200px]">{renderCenter()}</div>
 
-            <div className="border-t border-gray-200 p-4 bg-gray-50">
+            <div className="space-y-3 border-t border-gray-200 bg-gray-50 p-4">
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <span className="text-xs text-gray-500">Recognize speech as</span>
+                <button
+                  type="button"
+                  onClick={() => setInputSpeechLang('en-IN')}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    inputSpeechLang === 'en-IN'
+                      ? 'bg-green-600 text-white shadow-sm'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  English
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInputSpeechLang('hi-IN')}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    inputSpeechLang === 'hi-IN'
+                      ? 'bg-green-600 text-white shadow-sm'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  हिंदी
+                </button>
+              </div>
               <div className="flex items-center justify-center gap-2">{statusBar}</div>
             </div>
           </motion.div>

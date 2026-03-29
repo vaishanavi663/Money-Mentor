@@ -208,7 +208,14 @@ export const api = {
   getMe: () => request<{ user: AuthUser }>("/auth/me"),
   logout: () => request<{ message: string }>("/auth/logout", { method: "POST" }),
 
-  aiChat: (body: { message: string; conversationHistory: AiChatTurn[] }) =>
+  aiChat: (body: {
+    message: string;
+    conversationHistory: AiChatTurn[];
+    /** Voice assistant: server enforces reply language to match the user. */
+    voiceMode?: boolean;
+    /** 'en' | 'hi' | 'hinglish' — from transcript analysis */
+    voiceReplyLanguage?: string;
+  }) =>
     request<{ reply: string }>("/ai/chat", {
       method: "POST",
       body: JSON.stringify(body),
