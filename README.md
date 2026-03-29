@@ -70,7 +70,7 @@ All in one app. All built for Bharat.
 📩 Bank SMS arrives → Parsed & categorized in seconds
 ```
 
-> **Live Demo:** `[your-deployment-url-here]`
+> **Live Demo:** https://money-mentor-frontend.vercel.app
 
 ---
 
@@ -82,19 +82,19 @@ All in one app. All built for Bharat.
 │  ┌──────────────────┐     ┌──────────────────────────┐  │
 │  │  React 18 + Vite │     │  Capacitor Android Shell │  │
 │  │  TypeScript SPA  │     │  (Native SMS Plugin)     │  │
-│  └────────┬─────────┘     └────────────┬─────────────┘  │
+│  └────────┬─────────┘     └─────────────┬────────────┘  │
 └───────────│─────────────────────────────│───────────────┘
             │ HTTPS /api                  │ HTTPS /api
 ┌───────────▼─────────────────────────────▼───────────────┐
 │                     BACKEND (Express 5)                 │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐  │
-│  │Auth + JWT│  │Transact- │  │ Tax Tips │  │AI Chat │  │
-│  │Sessions  │  │ions CRUD │  │ Engine   │  │Handler │  │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └───┬────┘  │
-│       └─────────────┴──────────────┴────────────┘       │
-│                         │                               │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐   │
+│  │Auth + JWT│  │Transact- │  │ Tax Tips │  │AI Chat │   │
+│  │Sessions  │  │ions CRUD │  │ Engine   │  │Handler │   │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └───┬────┘   │
+│       └─────────────┴─────────────┴────────────┘        │
+│                          │                              │
 │               ┌──────────▼──────────┐                   │
-│               │    PostgreSQL DB     │                   │
+│               │    PostgreSQL DB    │                   │
 │               └─────────────────────┘                   │
 │                                                         │
 │        ┌──────────────┐    ┌──────────────┐             │
