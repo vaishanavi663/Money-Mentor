@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Bot, User, Mic, TrendingUp, PiggyBank, AlertTriangle, Volume2 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useReplyLanguage } from '../context/ReplyLanguageContext';
 import { useUserProfile } from '../context/UserProfileContext';
+import { resolveReplyLanguagePreference } from '../lib/voiceLanguage';
 import { usePlan } from '../../hooks/usePlan';
 import { useChatVoice } from '../../hooks/useChatVoice';
 import { api, type AiChatTurn } from '../lib/api';
@@ -23,6 +25,7 @@ interface Message {
 
 export function AIChat() {
   const { profile } = useUserProfile();
+  const { preference: replyLanguagePreference } = useReplyLanguage();
   const { isPro, showUpgradeModal } = usePlan();
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -164,10 +167,18 @@ export function AIChat() {
     setConversationHistory(withUser);
 
     try {
-      const { reply } = await api.aiChat({
+      const chatBody: {
+        message: string;
+        conversationHistory: AiChatTurn[];
+        voiceReplyLanguage?: string;
+      } = {
         message: text,
         conversationHistory: withUser,
-      });
+      };
+      if (replyLanguagePreference !== 'auto') {
+        chatBody.voiceReplyLanguage = resolveReplyLanguagePreference(replyLanguagePreference, text);
+      }
+      const { reply } = await api.aiChat(chatBody);
       const modelTurn: AiChatTurn = { role: 'model', parts: [{ text: reply }] };
       const withModel = [...withUser, modelTurn];
       historyRef.current = withModel;

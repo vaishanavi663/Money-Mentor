@@ -1,8 +1,36 @@
-import { LayoutDashboard, MessageCircle, Receipt, Sparkles, Activity, Bot, ChevronLeft, ChevronRight, User, Settings, LogOut, Star, Percent, Landmark, Lock } from 'lucide-react';
+import {
+  LayoutDashboard,
+  MessageCircle,
+  Receipt,
+  Sparkles,
+  Activity,
+  Bot,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  User,
+  Settings,
+  LogOut,
+  Star,
+  Percent,
+  Landmark,
+  Lock,
+  Globe,
+  Check,
+} from 'lucide-react';
 import { useState } from 'react';
 import type { AuthUser } from '../lib/api';
+import type { ReplyLanguagePreference } from '../lib/voiceLanguage';
+import { useReplyLanguage } from '../context/ReplyLanguageContext';
 import { useUserProfile } from '../context/UserProfileContext';
 import { usePlan } from '../../hooks/usePlan';
+
+const REPLY_LANG_OPTIONS: { value: ReplyLanguagePreference; label: string; sub?: string }[] = [
+  { value: 'auto', label: 'Auto', sub: 'Match your message' },
+  { value: 'en', label: 'English' },
+  { value: 'hi', label: 'Hindi', sub: 'हिंदी' },
+  { value: 'hinglish', label: 'Hinglish' },
+];
 
 type Page = 'dashboard' | 'chat' | 'expenses' | 'simulator' | 'health' | 'tax-tips' | 'schemes';
 
@@ -25,7 +53,14 @@ export function Sidebar({
 }: SidebarProps) {
   const { profile } = useUserProfile();
   const { isPro, showUpgradeModal } = usePlan();
+  const { preference: replyLanguage, setPreference: setReplyLanguage } = useReplyLanguage();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [languageExpanded, setLanguageExpanded] = useState(false);
+
+  const closeProfileMenu = () => {
+    setShowProfileDropdown(false);
+    setLanguageExpanded(false);
+  };
 
   // All menu items in a flat structure
   const menuItems = [
@@ -133,7 +168,10 @@ export function Sidebar({
           </div>
         )}
         <button
-          onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+          onClick={() => {
+            setShowProfileDropdown(!showProfileDropdown);
+            if (showProfileDropdown) setLanguageExpanded(false);
+          }}
           className={`w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors ${
             isCollapsed ? 'justify-center' : ''
           } group relative`}
@@ -160,35 +198,78 @@ export function Sidebar({
         {showProfileDropdown && !isCollapsed && (
           <>
             {/* Backdrop to close dropdown on outside click */}
-            <div 
-              className="fixed inset-0 z-40"
-              onClick={() => setShowProfileDropdown(false)}
-            />
+            <div className="fixed inset-0 z-40" onClick={closeProfileMenu} />
             
             {/* Dropdown */}
             <div className="absolute bottom-full left-3 right-3 mb-2 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50 animate-fade-in">
-              <button 
+              <button
+                type="button"
                 className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors"
-                onClick={() => setShowProfileDropdown(false)}
+                onClick={closeProfileMenu}
               >
                 <User className="w-4 h-4 text-gray-500" />
                 <span>View Profile</span>
               </button>
-              
-              <button 
+
+              <button
+                type="button"
                 className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors"
-                onClick={() => setShowProfileDropdown(false)}
+                onClick={closeProfileMenu}
               >
                 <Settings className="w-4 h-4 text-gray-500" />
                 <span>Settings</span>
               </button>
-              
+
+              <div className="border-t border-gray-100">
+                <button
+                  type="button"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between gap-2 transition-colors"
+                  onClick={() => setLanguageExpanded((v) => !v)}
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <Globe className="w-4 h-4 text-gray-500 shrink-0" />
+                    <span className="truncate">Language</span>
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${languageExpanded ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                {languageExpanded && (
+                  <div className="px-2 pb-2 space-y-0.5">
+                    {REPLY_LANG_OPTIONS.map((opt) => {
+                      const selected = replyLanguage === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          className={`w-full rounded-lg px-3 py-2 text-left text-sm flex items-start gap-2 transition-colors ${
+                            selected ? 'bg-emerald-50 text-emerald-900' : 'text-gray-700 hover:bg-gray-50'
+                          }`}
+                          onClick={() => setReplyLanguage(opt.value)}
+                        >
+                          <Check
+                            className={`w-4 h-4 mt-0.5 shrink-0 ${selected ? 'text-emerald-600 opacity-100' : 'opacity-0'}`}
+                          />
+                          <span className="min-w-0">
+                            <span className="font-medium block">{opt.label}</span>
+                            {opt.sub ? (
+                              <span className="text-xs text-gray-500 block">{opt.sub}</span>
+                            ) : null}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               <div className="my-1 border-t border-gray-100"></div>
               
-              <button 
+              <button
+                type="button"
                 className="w-full px-4 py-2.5 text-left text-sm hover:bg-gradient-to-r hover:from-green-50 hover:to-blue-50 flex items-center gap-3 transition-colors group"
                 onClick={() => {
-                  setShowProfileDropdown(false);
+                  closeProfileMenu();
                   if (!isPro) {
                     showUpgradeModal(
                       'Money Mentor Pro',
@@ -203,10 +284,11 @@ export function Sidebar({
               
               <div className="my-1 border-t border-gray-100"></div>
               
-              <button 
+              <button
+                type="button"
                 className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
                 onClick={() => {
-                  setShowProfileDropdown(false);
+                  closeProfileMenu();
                   onLogout();
                 }}
               >

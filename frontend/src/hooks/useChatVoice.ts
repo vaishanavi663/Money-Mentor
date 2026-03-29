@@ -8,11 +8,8 @@ import {
   type SetStateAction,
 } from "react";
 import { api, type AiChatTurn } from "@/app/lib/api";
-import {
-  inferVoiceReplyLanguage,
-  refineReplyLangForSpeechLocale,
-  ttsLangForVoice,
-} from "@/app/lib/voiceLanguage";
+import { resolveReplyLanguagePreference, ttsLangForVoice } from "@/app/lib/voiceLanguage";
+import { useReplyLanguage } from "@/app/context/ReplyLanguageContext";
 
 declare global {
   interface Window {
@@ -46,6 +43,7 @@ export function useChatVoice({
   onRequestStart,
   onRequestEnd,
 }: UseChatVoiceParams) {
+  const { preference: replyLanguagePreference } = useReplyLanguage();
   const [isListening, setIsListening] = useState(false);
   const [permissionState, setPermissionState] = useState<VoicePermissionState>("unknown");
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -124,8 +122,11 @@ export function useChatVoice({
       setConversationHistory(withUser);
 
       try {
-        let replyLang = inferVoiceReplyLanguage(userMessage);
-        replyLang = refineReplyLangForSpeechLocale(userMessage, inputSpeechLang, replyLang);
+        const replyLang = resolveReplyLanguagePreference(
+          replyLanguagePreference,
+          userMessage,
+          inputSpeechLang,
+        );
 
         const { reply } = await api.aiChat({
           message: userMessage,
@@ -157,6 +158,7 @@ export function useChatVoice({
       onRequestEnd,
       onRequestStart,
       onUserMessage,
+      replyLanguagePreference,
       setConversationHistory,
       speakResponse,
     ],

@@ -801,6 +801,23 @@ VOICE MODE — LANGUAGE:
 - Mirror the user's latest message only: English → English only; Hindi script → Hindi; mixed Roman Hinglish → match that mix.
 - Do not default to Hindi or Hinglish when the latest message is plain English.`;
       }
+    } else if (voiceReplyLanguage === "en" || voiceReplyLanguage === "english") {
+      voiceLanguageBlock = `
+
+PREFERRED REPLY LANGUAGE (app setting):
+- The user chose English for AI replies. Reply in English only.
+- Do not use Hindi or Hinglish unless their latest message clearly uses those.`;
+    } else if (voiceReplyLanguage === "hi" || voiceReplyLanguage === "hindi") {
+      voiceLanguageBlock = `
+
+PREFERRED REPLY LANGUAGE (app setting):
+- The user chose Hindi for AI replies. Reply in Hindi where natural.
+- Standard abbreviations (SIP, EMI, NPS) may stay as usual.`;
+    } else if (voiceReplyLanguage === "hinglish") {
+      voiceLanguageBlock = `
+
+PREFERRED REPLY LANGUAGE (app setting):
+- The user chose Hinglish for AI replies. Reply in a natural Hindi–English mix.`;
     }
 
     const systemPrompt = `You are Money Mentor, a friendly AI financial advisor. You understand Indian taxes, UPI, SIPs, and rupee budgeting. Do not assume the user wants Hindi — follow their language.

@@ -1,3 +1,24 @@
+export type ReplyLanguagePreference = "auto" | "en" | "hi" | "hinglish";
+
+/** Resolve stored preference vs inference (voice may pass speech locale for refinement). */
+export function resolveReplyLanguagePreference(
+  preference: ReplyLanguagePreference,
+  userMessage: string,
+  inputSpeechLang?: "en-IN" | "hi-IN",
+): "en" | "hi" | "hinglish" {
+  if (preference !== "auto") {
+    if (inputSpeechLang) {
+      return refineReplyLangForSpeechLocale(userMessage, inputSpeechLang, preference);
+    }
+    return preference;
+  }
+  let inferred = inferVoiceReplyLanguage(userMessage);
+  if (inputSpeechLang) {
+    inferred = refineReplyLangForSpeechLocale(userMessage, inputSpeechLang, inferred);
+  }
+  return inferred;
+}
+
 /** Infer how the user spoke so the model and TTS match (English / Hindi / Roman Hinglish). */
 export function inferVoiceReplyLanguage(text: string): "en" | "hi" | "hinglish" {
   const trimmed = text.trim();

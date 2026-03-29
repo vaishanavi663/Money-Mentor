@@ -13,7 +13,7 @@
 
 <br />
 
-**Plan · Track · Invest · Simulate** — all in one beautiful dashboard.
+**Plan · Track · Invest · Simulate** - all in one beautiful dashboard.
 
 [Features](#-features) · [Architecture](#-architecture) · [Quick start](#-quick-start) · [Environment](#-environment-variables)
 
