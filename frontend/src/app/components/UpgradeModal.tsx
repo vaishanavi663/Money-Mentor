@@ -49,7 +49,7 @@ export function UpgradeModal() {
           <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-center">
             <p className="text-sm text-emerald-800">Money Mentor Pro</p>
             <p className="text-3xl font-bold text-emerald-900">
-              ₹99<span className="text-lg font-normal text-emerald-700">/month</span>
+              ₹199<span className="text-lg font-normal text-emerald-700">/month</span>
             </p>
           </div>
           <button

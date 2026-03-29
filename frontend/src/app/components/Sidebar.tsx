@@ -121,7 +121,7 @@ export function Sidebar({
                     if (simulatorLocked) {
                       showUpgradeModal(
                         'Future Simulator',
-                        'Run scenario planning and leak detection — unlock with Pro (₹99/mo).',
+                        'Run scenario planning and leak detection — unlock with Pro (₹199/mo).',
                       );
                       return;
                     }

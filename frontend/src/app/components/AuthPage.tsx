@@ -138,7 +138,7 @@ export function AuthPage({ mode, signupPlan = "free", onBackToLanding, onAuthSuc
             <p className="mt-2 text-sm text-gray-600">{subtitle}</p>
             {activeMode === "register" && signupPlan === "pro" && (
               <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                You are signing up for <span className="font-semibold">Pro</span> (₹99/mo) — no payment step for this
+                You are signing up for <span className="font-semibold">Pro</span> (₹199/mo) — no payment step for this
                 demo; your account will be created as Pro.
               </p>
             )}

@@ -123,7 +123,7 @@ export function LandingPage({ onGetStartedFree, onGetStartedPro, onLogin }: Land
                 Popular
               </div>
               <h3 className="text-2xl font-bold mb-2">Pro</h3>
-              <div className="text-4xl font-bold mb-6">₹99<span className="text-lg opacity-80">/month</span></div>
+              <div className="text-4xl font-bold mb-6">₹199<span className="text-lg opacity-80">/month</span></div>
               <ul className="space-y-3 mb-8 text-left">
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5" />

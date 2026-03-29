@@ -45,7 +45,7 @@ function FutureSimulatorUpgradePrompt({ onUpgrade }: { onUpgrade: () => void }) 
           onClick={onUpgrade}
           className="mt-6 w-full rounded-xl bg-gradient-to-r from-green-600 to-blue-600 py-3 font-medium text-white transition-opacity hover:opacity-95"
         >
-          Upgrade to Pro — ₹99/mo
+          Upgrade to Pro — ₹199/mo
         </button>
       </div>
     </div>
