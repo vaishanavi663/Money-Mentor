@@ -78,17 +78,17 @@
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│                     React + Vite (frontend)                  │
-│   Tailwind · shadcn/ui · Recharts · TanStack Query · Motion  │
+│                     React + Vite (frontend)                 │
+│   Tailwind · shadcn/ui · Recharts · TanStack Query · Motion │
 └──────────────────────────┬──────────────────────────────────┘
                            │ REST + Bearer JWT
 ┌──────────────────────────▼──────────────────────────────────┐
-│                  Express 5 (backend/server)                  │
-│        Auth · Profile · Transactions · AI (Gemini)             │
+│                  Express 5 (backend/server)                 │
+│        Auth · Profile · Transactions · AI (Gemini)          │
 └──────────────────────────┬──────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
-│                      PostgreSQL                              │
+│                      PostgreSQL                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
