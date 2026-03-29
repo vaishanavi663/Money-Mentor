@@ -8,7 +8,6 @@ import { AIChat } from './components/AIChat';
 import { ExpensesDashboard } from './components/ExpensesDashboard';
 import { FutureSimulator } from './components/FutureSimulator';
 import { MoneyHealthScore } from './components/MoneyHealthScore';
-import { VoiceAssistant } from './components/VoiceAssistant';
 import { BadDecisionDetector } from './components/BadDecisionDetector';
 import { OnboardingQuiz } from './components/OnboardingQuiz';
 import { ImpactFeed } from './components/ImpactFeed';
@@ -292,7 +291,6 @@ export default function App() {
       </div>
 
       {/* Floating Components */}
-      <VoiceAssistant />
       <BadDecisionDetector
         decisions={badDecisions}
         onDismiss={handleDismissDecision}

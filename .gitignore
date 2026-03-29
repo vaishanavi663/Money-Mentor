@@ -14,10 +14,12 @@ backend/dist/
 .env.*
 frontend/.env
 frontend/.env.*
+frontend/.env.local
 backend/.env
 backend/.env.*
 !.env.example
 !frontend/.env.example
+!frontend/.env.production
 !backend/.env.example
 
 # Logs

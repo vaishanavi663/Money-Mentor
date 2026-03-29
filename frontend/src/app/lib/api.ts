@@ -29,7 +29,12 @@ export interface AuthResponse {
 
 /** Ensures requests hit .../api/profile, not .../profile (which returns 404). */
 function normalizeApiBaseUrl(): string {
-  const raw = (import.meta.env.VITE_API_URL || "http://localhost:4000/api").trim().replace(/\/+$/, "");
+  const raw = String(import.meta.env.VITE_API_URL ?? "").trim().replace(/\/+$/, "");
+  if (!raw) {
+    throw new Error(
+      "Missing VITE_API_URL. For local dev add frontend/.env.local; production uses frontend/.env.production or your host’s env (e.g. Vercel).",
+    );
+  }
   if (/\/api$/i.test(raw)) {
     return raw;
   }

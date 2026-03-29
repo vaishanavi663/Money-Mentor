@@ -15,7 +15,42 @@ const port = Number(process.env.PORT || 4000);
 const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
 const JWT_EXPIRES_IN = "7d";
 
-app.use(cors());
+function createCorsMiddleware() {
+  const raw = process.env.CORS_ORIGIN?.trim();
+  if (!raw) {
+    return cors();
+  }
+  const allowedExact = new Set(
+    raw.split(",").map((s) => s.trim()).filter(Boolean),
+  );
+  const allowVercelPreviews =
+    process.env.CORS_ALLOW_VERCEL_PREVIEWS === "1" ||
+    process.env.CORS_ALLOW_VERCEL_PREVIEWS === "true";
+
+  return cors({
+    origin(origin, callback) {
+      if (!origin) {
+        return callback(null, true);
+      }
+      if (allowedExact.has(origin)) {
+        return callback(null, true);
+      }
+      if (allowVercelPreviews) {
+        try {
+          const { hostname } = new URL(origin);
+          if (hostname === "vercel.app" || hostname.endsWith(".vercel.app")) {
+            return callback(null, true);
+          }
+        } catch {
+          /* ignore invalid Origin */
+        }
+      }
+      return callback(null, false);
+    },
+  });
+}
+
+app.use(createCorsMiddleware());
 app.use(express.json());
 
 app.use((req, res, next) => {
