@@ -6,6 +6,7 @@ backend/node_modules/
 # Build outputs
 dist/
 frontend/dist/
+frontend/android
 backend/dist/
 *.tsbuildinfo
 
