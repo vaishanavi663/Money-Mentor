@@ -15,7 +15,42 @@ const port = Number(process.env.PORT || 4000);
 const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
 const JWT_EXPIRES_IN = "7d";
 
-app.use(cors());
+function createCorsMiddleware() {
+  const raw = process.env.CORS_ORIGIN?.trim();
+  if (!raw) {
+    return cors();
+  }
+  const allowedExact = new Set(
+    raw.split(",").map((s) => s.trim()).filter(Boolean),
+  );
+  const allowVercelPreviews =
+    process.env.CORS_ALLOW_VERCEL_PREVIEWS === "1" ||
+    process.env.CORS_ALLOW_VERCEL_PREVIEWS === "true";
+
+  return cors({
+    origin(origin, callback) {
+      if (!origin) {
+        return callback(null, true);
+      }
+      if (allowedExact.has(origin)) {
+        return callback(null, true);
+      }
+      if (allowVercelPreviews) {
+        try {
+          const { hostname } = new URL(origin);
+          if (hostname === "vercel.app" || hostname.endsWith(".vercel.app")) {
+            return callback(null, true);
+          }
+        } catch {
+          /* ignore invalid Origin */
+        }
+      }
+      return callback(null, false);
+    },
+  });
+}
+
+app.use(createCorsMiddleware());
 app.use(express.json());
 
 app.use((req, res, next) => {
@@ -732,7 +767,60 @@ app.post("/api/ai/chat", requireAuth, async (req, res) => {
         ? catRows.map((r) => `${r.category}: ${formatInrForPrompt(r.value)}`).join(", ")
         : "none yet";
 
-    const systemPrompt = `You are Money Mentor, a friendly AI financial advisor for Indian users.
+    const voiceMode = Boolean(req.body?.voiceMode);
+    const voiceReplyLanguage = String(req.body?.voiceReplyLanguage || "")
+      .trim()
+      .toLowerCase();
+
+    let voiceLanguageBlock = "";
+    if (voiceMode) {
+      if (voiceReplyLanguage === "en" || voiceReplyLanguage === "english") {
+        voiceLanguageBlock = `
+
+VOICE MODE — LANGUAGE (non-negotiable):
+- The user spoke in English. Your entire reply must be in English only.
+- Do not use Hindi, Urdu, or Hinglish words or sentence structure.
+- Indian financial terms may stay as standard English abbreviations (SIP, EMI, PPF, NPS, ELSS).
+- If prior messages in history are in Hindi, ignore that for this reply — follow this English-only rule.`;
+      } else if (voiceReplyLanguage === "hi" || voiceReplyLanguage === "hindi") {
+        voiceLanguageBlock = `
+
+VOICE MODE — LANGUAGE (non-negotiable):
+- The user spoke in Hindi (Devanagari). Your entire reply must be in Hindi.
+- Do not switch to English except for standard product abbreviations (SIP, EMI, NPS) where natural.`;
+      } else if (voiceReplyLanguage === "hinglish") {
+        voiceLanguageBlock = `
+
+VOICE MODE — LANGUAGE:
+- The user spoke in Roman Hinglish (Hindi in Latin letters, possibly mixed with English).
+- Reply in the same style: natural Hindi–English mix matching their tone.`;
+      } else {
+        voiceLanguageBlock = `
+
+VOICE MODE — LANGUAGE:
+- Mirror the user's latest message only: English → English only; Hindi script → Hindi; mixed Roman Hinglish → match that mix.
+- Do not default to Hindi or Hinglish when the latest message is plain English.`;
+      }
+    } else if (voiceReplyLanguage === "en" || voiceReplyLanguage === "english") {
+      voiceLanguageBlock = `
+
+PREFERRED REPLY LANGUAGE (app setting):
+- The user chose English for AI replies. Reply in English only.
+- Do not use Hindi or Hinglish unless their latest message clearly uses those.`;
+    } else if (voiceReplyLanguage === "hi" || voiceReplyLanguage === "hindi") {
+      voiceLanguageBlock = `
+
+PREFERRED REPLY LANGUAGE (app setting):
+- The user chose Hindi for AI replies. Reply in Hindi where natural.
+- Standard abbreviations (SIP, EMI, NPS) may stay as usual.`;
+    } else if (voiceReplyLanguage === "hinglish") {
+      voiceLanguageBlock = `
+
+PREFERRED REPLY LANGUAGE (app setting):
+- The user chose Hinglish for AI replies. Reply in a natural Hindi–English mix.`;
+    }
+
+    const systemPrompt = `You are Money Mentor, a friendly AI financial advisor. You understand Indian taxes, UPI, SIPs, and rupee budgeting. Do not assume the user wants Hindi — follow their language.
 Be casual, warm, and helpful. Use simple, clear language. Keep responses under 3 sentences when the user is on voice.
 
 Language (very important):
@@ -740,8 +828,8 @@ Language (very important):
 - If they write or speak in English only, answer in natural English only — do not mix Hindi or Hinglish unless they did.
 - If they use Hindi, answer in Hindi.
 - If they naturally mix Hindi and English (Hinglish), you may reply in the same mixed style.
-- Do not default to Hinglish when the user used plain English.
-
+- Never default to Hindi or Hinglish when the user used plain English.
+${voiceLanguageBlock}
 Current user's financial snapshot:
 - Monthly income: ${formatInrForPrompt(monthly_income)}
 - Monthly expenses: ${formatInrForPrompt(monthly_expenses)}  

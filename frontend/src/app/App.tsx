@@ -8,7 +8,6 @@ import { AIChat } from './components/AIChat';
 import { ExpensesDashboard } from './components/ExpensesDashboard';
 import { FutureSimulator } from './components/FutureSimulator';
 import { MoneyHealthScore } from './components/MoneyHealthScore';
-import { VoiceAssistant } from './components/VoiceAssistant';
 import { BadDecisionDetector } from './components/BadDecisionDetector';
 import { OnboardingQuiz } from './components/OnboardingQuiz';
 import { ImpactFeed } from './components/ImpactFeed';
@@ -380,7 +379,9 @@ export default function App() {
 
       {/* Main Content Area */}
       <div className="relative z-10 flex min-h-0 flex-1 overflow-hidden">
-        {activePage === 'dashboard' && <MainDashboard />}
+        {activePage === 'dashboard' && (
+          <MainDashboard onNavigateToPage={(page) => setActivePage(page)} />
+        )}
         {activePage === 'chat' && <AIChat />}
         {activePage === 'expenses' && <ExpensesDashboard />}
        {activePage === 'simulator' && (
@@ -396,15 +397,7 @@ export default function App() {
       </div>
 
       {/* Floating Components */}
-      <VoiceAssistant
-        onNavigate={handleVoiceNavigate}
-        onAddTransaction={handleVoiceAddTransaction}
-        onType={handleVoiceType}
-        onScroll={handleVoiceScroll}
-        onSubNavigate={handleVoiceSubNavigate}
-        onLogout={handleLogout}
-        onUpgrade={handleVoiceUpgrade}
-      />
+      <VoiceAssistant />
       <BadDecisionDetector
         decisions={badDecisions}
         onDismiss={handleDismissDecision}

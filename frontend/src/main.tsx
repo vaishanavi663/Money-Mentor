@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./app/App.tsx";
 import { UpgradeModal } from "./app/components/UpgradeModal.tsx";
+import { ReplyLanguageProvider } from "./app/context/ReplyLanguageContext.tsx";
 import { UserProfileProvider } from "./app/context/UserProfileContext.tsx";
 import "./styles/index.css";
 
@@ -18,8 +19,10 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
     <UserProfileProvider>
-      <App />
-      <UpgradeModal />
+      <ReplyLanguageProvider>
+        <App />
+        <UpgradeModal />
+      </ReplyLanguageProvider>
     </UserProfileProvider>
   </QueryClientProvider>,
 );

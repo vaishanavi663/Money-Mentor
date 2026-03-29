@@ -1,15 +1,30 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 
-export default defineConfig({
+function devProxyTarget(viteApiUrl: string): string {
+  const u = viteApiUrl.trim().replace(/\/+$/, '')
+  if (!u || u === '/api') {
+    return 'http://localhost:5000'
+  }
+  if (u.startsWith('http://') || u.startsWith('https://')) {
+    return u.replace(/\/api\/?$/i, '') || u
+  }
+  return 'http://localhost:5000'
+}
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, __dirname, 'VITE_')
+  const proxyTarget = devProxyTarget(env.VITE_API_URL || '')
+
+  return {
   root: __dirname,
   server: {
     proxy: {
       // Forward /api/* to the Express backend so VITE_API_URL=/api works in dev (see .env.example).
       "/api": {
-        target: "http://localhost:4000",
+        target: proxyTarget,
         changeOrigin: true,
       },
     },
@@ -46,4 +61,5 @@ export default defineConfig({
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
+  }
 })
