@@ -22,8 +22,15 @@ export interface NextFinancialMoveResult {
   confidence: "high" | "medium" | "exploratory";
 }
 
+/** Display cap for SIP amounts in “Next Financial Move” copy */
+const MAX_SIP_MONTHLY = 3000;
+
 function fmt(n: number): string {
   return `₹${Math.round(n).toLocaleString("en-IN")}`;
+}
+
+function capSip(amount: number): number {
+  return Math.min(Math.max(0, amount), MAX_SIP_MONTHLY);
 }
 
 function hasMutualOrSip(profile: UserProfile): boolean {
@@ -163,11 +170,12 @@ export function computeNextFinancialMove(
   }
 
   if (!hasMF && profile.recommendedSIP >= 1000 && profile.monthlySavings > 3000) {
+    const sipDisplay = capSip(profile.recommendedSIP);
     candidates.push({
       score: 74,
-      title: `Start a monthly SIP near ${fmt(profile.recommendedSIP)}`,
+      title: `Start a monthly SIP near ${fmt(sipDisplay)}`,
       subtitle: `Aligned to your ${profile.riskProfile} risk band and current surplus.`,
-      rationale: `Rupee-cost averaging into diversified mutual funds suits long horizons. The suggested amount scales from your surplus and risk profile — confirm fund choice, KYC, and suitability with a SEBI-registered advisor or dig deeper in Chat.`,
+      rationale: `Rupee-cost averaging into diversified mutual funds suits long horizons. The suggested amount scales from your surplus and risk profile (capped at ${fmt(MAX_SIP_MONTHLY)}/mo for guidance) — confirm fund choice, KYC, and suitability with a SEBI-registered advisor or dig deeper in Chat.`,
       navigateTo: "chat",
       ctaLabel: "Talk SIPs in Chat",
       confidence: "medium",
@@ -175,9 +183,10 @@ export function computeNextFinancialMove(
   }
 
   if (hasMF && profile.monthlySavings > 2000) {
+    const stepped = capSip(Math.round(profile.recommendedSIP * 1.1));
     candidates.push({
       score: 70,
-      title: `Consider stepping SIPs toward ${fmt(Math.round(profile.recommendedSIP * 1.1))}/mo`,
+      title: `Consider stepping SIPs toward ${fmt(stepped)}/mo`,
       subtitle: "A modest annual bump keeps contributions aligned with raises and inflation.",
       rationale: `You already invest via mutual funds/SIP. Many investors raise SIPs ~10% yearly. If your income recently increased, capturing part of the raise in investments avoids lifestyle creep.`,
       navigateTo: "simulator",
@@ -250,7 +259,7 @@ export function computeNextFinancialMove(
     score: 35,
     title:
       profile.recommendedSIP >= 500
-        ? `Stay consistent: ~${fmt(profile.recommendedSIP)}/mo toward ${goalsLine}`
+        ? `Stay consistent: ~${fmt(capSip(profile.recommendedSIP))}/mo toward ${goalsLine}`
         : `Keep saving toward ${goalsLine}`,
     subtitle: `You are putting away ~${savingsRate.toFixed(0)}% of income — maintain or nudge it up as earnings grow.`,
     rationale: `Your goals (${goalsLine}) and ${profile.riskProfile} risk profile suggest steady, boring investing beats timing markets. Revisit amounts after salary changes, large expenses, or new dependents.`,
@@ -261,11 +270,21 @@ export function computeNextFinancialMove(
 
   candidates.sort((a, b) => b.score - a.score);
   const primary = candidates[0];
-  const supportingTips = candidates
+
+  const sipForTip = capSip(profile.recommendedSIP);
+  const fixedNextMoveTips = [
+    `You can invest ${fmt(sipForTip)}/month in SIP. Start growing your money today 🚀`,
+    "You have used 90% of your budget ⚠️ Try to reduce spending this week.",
+    "You spent ₹3,500 on food this week. Save ₹500 by reducing Swiggy orders.",
+  ];
+
+  const dynamicTips = candidates
     .slice(1, 8)
     .filter((c) => c.title !== primary.title)
     .slice(0, 3)
     .map((c) => c.subtitle);
+
+  const supportingTips = [...fixedNextMoveTips, ...dynamicTips];
 
   return {
     title: primary.title,
